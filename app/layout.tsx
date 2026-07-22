@@ -13,11 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InsurSuite | Your Insurance Command Center",
-  description: "Organize policies, documents, beneficiaries, coverage reviews, and service requests in one secure client portal.",
-  other: {
-    "codex-preview": "development",
-  },
+  title: "InsurSuite | Insurance Organized Before It Is Urgent",
+  description: "A secure client portal for organizing policies, documents, beneficiaries, service requests, and annual coverage checkups.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

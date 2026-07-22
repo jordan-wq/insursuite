@@ -287,6 +287,9 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
     ...policyData.filter((policy) => !policy.isSample).slice(0, 2).map((policy) => ({ id: `policy-${policy.id}`, icon: ShieldCheck, title: "Policy saved", detail: `${policy.type} · ${policy.carrier}`, time: "Saved", color: "green" })),
   ].slice(0, 4);
   const activityItems = isSample || !liveActivity.length ? sampleActivity : liveActivity;
+  const verifiedPolicies = policyData.filter((policy) => !policy.isSample).length;
+  const policyDocumentCount = documents.filter((document) => document.policyNumber).length;
+  const activeRequestCount = requests.filter((request) => request.status !== "resolved").length;
 
   const ask = (text: string) => {
     const next = text.trim();
@@ -304,12 +307,17 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
     <>
       <DataModeBanner sample={isSample} />
       <div className="priority-focus">
-        <span><Zap size={17} />Needs attention</span>
-        <div>
+        <span className="priority-badge"><Zap size={17} />Needs attention</span>
+        <div className="priority-copy">
           <strong>{topAction?.title || "Coverage file is organized"}</strong>
           <p>{topAction?.detail || "Saved policies, documents, beneficiaries, review rhythm, and emergency contacts are in a good place."}</p>
         </div>
-        <button className="secondary-button" onClick={() => onOpen(topAction?.modal || "review")}>{topAction?.action || "Review coverage"}</button>
+        <div className="priority-ledger" aria-label="Coverage file status">
+          <span><b>{metrics.score}</b><small>readiness</small></span>
+          <span><b>{documents.length}</b><small>vault docs</small></span>
+          <span><b>{activeRequestCount}</b><small>open asks</small></span>
+        </div>
+        <button className="primary-button" onClick={() => onOpen(topAction?.modal || "review")}>{topAction?.action || "Review coverage"}</button>
       </div>
       <div className="stat-grid">
         <StatCard label="Portal Readiness" value={String(metrics.score)} note="Based on saved data completeness" tone="green" icon={ShieldCheck} />
@@ -340,11 +348,16 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
             <span><strong>Add a Policy</strong><small>Upload a policy document to track it in InsurSuite</small></span>
             <span className="outline-button">Upload Document</span>
           </button>
+          <div className="policy-panel-footer">
+            <span><ShieldCheck size={15} /><b>{verifiedPolicies}</b> verified policies</span>
+            <span><FolderLock size={15} /><b>{policyDocumentCount}</b> linked documents</span>
+            <span><UsersRound size={15} /><b>{metrics.beneficiaryRate}%</b> beneficiaries recorded</span>
+          </div>
         </Panel>
 
         <Panel className="assistant-panel">
           <div className="panel-header"><h2>AI Insurance Assistant</h2><span className="pill purple">24/7</span></div>
-          <div className="assistant-intro"><p>Hi {String(profile?.profile?.preferredName || profile?.fullName || "there")}! I’m here to help organize<br />your saved insurance information.</p><Sparkles size={44} /></div>
+          <div className="assistant-intro"><p>Hi {String(profile?.profile?.preferredName || profile?.fullName || "there")}! I&apos;m here to help organize your saved insurance information.</p><Sparkles size={44} /></div>
           <div className="prompt-list">
             {aiPrompts.map((prompt) => <button key={prompt} onClick={() => ask(prompt)}><MessageCircle size={16} />{prompt}</button>)}
           </div>
@@ -382,15 +395,15 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
           <PanelHeader title="Quick Actions" />
           <div className="action-grid">
             {[
-              [Upload, "Upload Document", "upload", "blue"],
-              [TicketCheck, "Create a Request", "ticket", "orange"],
-              [UsersRound, "Update Beneficiaries", "beneficiary", "blue"],
-              [WalletCards, "Policy Comparison", "policies", "navy"],
-              [CalendarDays, "Annual Review", "review", "blue"],
-              [Headphones, "Contact Concierge", "concierge", "blue"],
-            ].map(([Icon, label, action, color]) => {
+              [Upload, "Upload Document", "Add policy files", "upload", "blue"],
+              [TicketCheck, "Create Request", "Track service needs", "ticket", "orange"],
+              [UsersRound, "Beneficiaries", "Review designations", "beneficiary", "blue"],
+              [WalletCards, "Compare Policies", "Inspect side by side", "policies", "navy"],
+              [CalendarDays, "Annual Review", "Book a review", "review", "blue"],
+              [Headphones, "Concierge", "Message a person", "concierge", "blue"],
+            ].map(([Icon, label, detail, action, color]) => {
               const ActionIcon = Icon as LucideIcon;
-              return <button key={String(label)} onClick={() => action === "policies" ? onNavigate("My Policies") : onOpen(String(action))}><ActionIcon size={27} className={String(color)} /><span>{String(label)}</span></button>;
+              return <button key={String(label)} onClick={() => action === "policies" ? onNavigate("My Policies") : onOpen(String(action))}><span className={`action-icon ${String(color)}`}><ActionIcon size={22} /></span><span><strong>{String(label)}</strong><small>{String(detail)}</small></span></button>;
             })}
           </div>
         </Panel>
@@ -647,7 +660,95 @@ function PortalLoading() {
 }
 
 function SignInGate() {
-  return <main className="portal-gate"><div className="gate-card"><div className="gate-brand"><ShieldCheck size={27} /><strong>Insur<span>Suite</span></strong></div><span className="gate-icon"><LockKeyhole size={31} /></span><p className="gate-kicker">Secure client portal</p><h1>Your complete insurance command center</h1><p>Create your portal to organize every policy, document, beneficiary, and service request in one protected place.</p><div className="gate-benefits"><span><CheckCircle2 size={16} />Persistent policy and document storage</span><span><CheckCircle2 size={16} />A complete, resumable coverage profile</span><span><CheckCircle2 size={16} />24/7 guidance with human support</span></div><a className="primary-button gate-signin" href="/signin-with-chatgpt?return_to=%2F">Create account or sign in<ArrowRight size={17} /></a><small>Secure identity verification is provided by ChatGPT. InsurSuite never receives your password.</small></div></main>;
+  const manifesto = [
+    "Insurance should be legible before it is urgent.",
+    "Every household deserves one trusted place for policies, people, documents, and next steps.",
+    "You should never have to search through emails, drawers, and carrier portals to understand what protects your family.",
+  ];
+  return (
+    <main className="marketing-page">
+      <nav className="marketing-nav" aria-label="InsurSuite marketing navigation">
+        <div className="gate-brand"><ShieldCheck size={27} /><strong>Insur<span>Suite</span></strong></div>
+        <div>
+          <a href="#mission">Mission</a>
+          <a href="#manifesto">Manifesto</a>
+          <a href="#platform">Platform</a>
+          <a className="nav-cta" href="/signin-with-chatgpt?return_to=%2F">Sign in</a>
+        </div>
+      </nav>
+
+      <section className="marketing-hero">
+        <div className="hero-copy">
+          <span className="market-kicker"><LockKeyhole size={15} />Secure insurance command center</span>
+          <h1>Keep your family’s insurance organized before anyone needs it.</h1>
+          <p>InsurSuite gives you one secure place for policies, documents, beneficiaries, support requests, and annual coverage checkups.</p>
+          <div className="hero-actions">
+            <a className="primary-button" href="/signin-with-chatgpt?return_to=%2F">Create account<ArrowRight size={17} /></a>
+            <a className="secondary-button" href="#mission">Read the mission</a>
+          </div>
+          <div className="trust-strip">
+            <span><CheckCircle2 size={16} />Policy vault</span>
+            <span><CheckCircle2 size={16} />Coverage checkups</span>
+            <span><CheckCircle2 size={16} />Human support</span>
+          </div>
+        </div>
+        <div className="hero-product" aria-label="InsurSuite product preview">
+          <div className="product-window">
+            <div className="window-top"><span /><span /><span /><strong>Family coverage file</strong></div>
+            <div className="product-grid">
+              <section>
+                <small>Needs attention</small>
+                <strong>Set annual review rhythm</strong>
+                <p>A scheduled review keeps coverage assumptions from going stale.</p>
+              </section>
+              <section>
+                <small>Readiness</small>
+                <strong>81/100</strong>
+                <i><b style={{ width: "81%" }} /></i>
+              </section>
+              <section className="wide">
+                <small>Personal coverage profile</small>
+                <strong>What should your coverage protect next?</strong>
+                <p>Keep household details, beneficiaries, important documents, and follow-up questions together for your next review.</p>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mission-band" id="mission">
+        <span>Company mission</span>
+        <h2>InsurSuite exists to make insurance feel organized, explainable, and human before life forces the issue.</h2>
+        <p>We are building a simpler way for people to keep track of their policies, documents, beneficiaries, and service requests so they always know what exists, what changed, what is missing, and what to do next.</p>
+      </section>
+
+      <section className="manifesto-section" id="manifesto">
+        <div>
+          <span>Manifesto</span>
+          <h2>Coverage is a promise. The system around it should act like one.</h2>
+        </div>
+        <div className="manifesto-list">
+          {manifesto.map((line, index) => <article key={line}><span>{String(index + 1).padStart(2, "0")}</span><p>{line}</p></article>)}
+        </div>
+      </section>
+
+      <section className="platform-section" id="platform">
+        <div className="platform-heading">
+          <span>What InsurSuite brings together</span>
+          <h2>One workspace for the work that usually gets scattered.</h2>
+        </div>
+        <div className="platform-grid">
+          {[["Document vault", "Store policy files, statements, illustrations, and forms with the right household and policy context."], ["Coverage review", "Turn saved information into readiness scores, missing-detail prompts, and practical next steps."], ["Support center", "Ask questions, create requests, and keep every update connected to the same conversation."], ["Protection profile", "Keep household facts, beneficiaries, goals, and upcoming life changes ready for your next review."]].map(([title, detail]) => <article key={title}><strong>{title}</strong><p>{detail}</p></article>)}
+        </div>
+      </section>
+
+      <section className="closing-cta">
+        <h2>Build a coverage file your future self can actually use.</h2>
+        <p>Start with your account, add the policies you already own, and let InsurSuite turn the paper trail into a working system.</p>
+        <a className="primary-button" href="/signin-with-chatgpt?return_to=%2F">Create account or sign in<ArrowRight size={17} /></a>
+      </section>
+    </main>
+  );
 }
 
 function AccountCreation({ user, onCreated, onSkip }: { user: PortalUser; onCreated: (profile: StoredProfile) => void; onSkip: () => void }) {
