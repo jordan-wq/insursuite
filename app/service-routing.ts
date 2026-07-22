@@ -1,5 +1,5 @@
 export async function getAgentEmails() {
-  if (process.env.VERCEL && process.env.INSURSUITE_USE_CLOUDFLARE !== "true") {
+  if (process.env.INSURSUITE_USE_CLOUDFLARE !== "true") {
     return String(process.env.AGENT_EMAILS || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
   }
 

@@ -70,7 +70,7 @@ type Store = {
 const globalStore = globalThis as typeof globalThis & { __insursuiteVercelStore?: Store };
 
 export function isVercelDemoStore() {
-  return Boolean(process.env.VERCEL) && process.env.INSURSUITE_USE_CLOUDFLARE !== "true";
+  return process.env.INSURSUITE_USE_CLOUDFLARE !== "true";
 }
 
 function store() {
@@ -108,10 +108,11 @@ function publicProfile(profile: Profile) {
 
 export async function vercelPortalData(user: ChatGPTUser) {
   const data = store();
+  const profile = ensureProfile(user);
   return Response.json({
     user,
     isAgent: await isAgent(user.email),
-    profile: data.profiles.find((item) => item.userEmail === user.email) ? publicProfile(data.profiles.find((item) => item.userEmail === user.email)!) : null,
+    profile: publicProfile(profile),
     policies: data.policies.filter((item) => item.userEmail === user.email),
     documents: data.documents.filter((item) => item.userEmail === user.email).map(publicDocument),
     requests: data.requests.filter((item) => item.userEmail === user.email),
@@ -168,6 +169,34 @@ export function publicDocument(document: DocumentRecord) {
     processingStatus: document.processingStatus,
     createdAt: document.createdAt,
   };
+}
+
+function ensureProfile(user: ChatGPTUser) {
+  const data = store();
+  const existing = data.profiles.find((item) => item.userEmail === user.email);
+  if (existing) return existing;
+
+  const now = new Date().toISOString();
+  const profile = {
+    id: nextId("profile"),
+    userEmail: user.email,
+    fullName: user.fullName || user.displayName,
+    phone: "",
+    dateOfBirth: "",
+    onboardingStatus: "completed",
+    onboardingStep: 7,
+    profileJson: JSON.stringify({
+      preferredName: user.displayName,
+      communicationStyle: "Short and direct",
+      reviewFrequency: "Annually",
+      informationConsent: true,
+      accuracyAttestation: true,
+    }),
+    createdAt: now,
+    updatedAt: now,
+  };
+  data.profiles.push(profile);
+  return profile;
 }
 
 export async function vercelSaveDocument(user: ChatGPTUser, form: FormData) {

@@ -36,7 +36,7 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
 }
 
 function getLocalDevUser(): ChatGPTUser | null {
-  if (process.env.NODE_ENV === "production" && !isVercelDemoLoginEnabled()) return null;
+  if (process.env.NODE_ENV === "production" && isAuthRequired()) return null;
 
   const email = process.env.LOCAL_DEV_USER_EMAIL || "local.client@insursuite.test";
   const fullName = process.env.LOCAL_DEV_USER_NAME || "Local Client";
@@ -47,8 +47,8 @@ function getLocalDevUser(): ChatGPTUser | null {
   };
 }
 
-function isVercelDemoLoginEnabled() {
-  return Boolean(process.env.VERCEL) && process.env.INSURSUITE_DEMO_LOGIN !== "false";
+function isAuthRequired() {
+  return process.env.INSURSUITE_REQUIRE_AUTH === "true";
 }
 
 export async function requireChatGPTUser(
