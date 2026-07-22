@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { agentNotifications, clientProfiles, serviceRequests } from "../../../../db/schema";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import { isAgentEditableRequestStatus } from "../../../service-request-model";
 import { isAgent } from "../../../service-routing";
 
 export async function GET() {
@@ -18,8 +19,9 @@ export async function PATCH(request: Request) {
   const user = await getChatGPTUser();
   if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
   const body = await request.json() as { id?: number; status?: string };
-  if (!body.id || !["assigned", "in_progress", "waiting_on_client", "resolved"].includes(body.status || "")) return Response.json({ error: "Valid request and status required" }, { status: 400 });
+  if (!body.id || !isAgentEditableRequestStatus(body.status)) return Response.json({ error: "Valid request and status required" }, { status: 400 });
   const db = await getDb();
-  const [saved] = await db.update(serviceRequests).set({ status: body.status!, unreadByAgent: false, updatedAt: new Date().toISOString() }).where(eq(serviceRequests.id, body.id)).returning();
+  const [saved] = await db.update(serviceRequests).set({ status: body.status, unreadByAgent: false, updatedAt: new Date().toISOString() }).where(and(eq(serviceRequests.id, body.id), eq(serviceRequests.assignedTo, user.email.toLowerCase()))).returning();
+  if (!saved) return Response.json({ error: "Request not found in your assigned queue" }, { status: 404 });
   return Response.json({ request: saved });
 }

@@ -49,6 +49,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { CALL_INTAKE_REQUIRED_FIELDS, READINESS_PROFILE_FIELDS } from "./profile-fields";
 
 type NavKey =
   | "Dashboard"
@@ -56,7 +57,7 @@ type NavKey =
   | "Document Vault"
   | "AI Assistant"
   | "Support Center"
-  | "Requests & Tickets"
+  | "Call Intake"
   | "Coverage Review"
   | "Notifications"
   | "Family & Household"
@@ -97,6 +98,8 @@ type StoredProfile = { fullName: string; phone: string; dateOfBirth: string; onb
 type PortalDocument = { id: number; fileName: string; contentType: string; fileSize: number; policyNumber: string; processingStatus: string; createdAt: string };
 type ServiceRequest = { id: number; requestType: string; details: string; status: string; createdAt: string; assignedTo?: string; source?: string; requestDataJson?: string; priority?: string };
 type IntakeField = { key: string; label: string; type?: "text" | "date" | "number" | "select" | "textarea" | "checkbox"; placeholder?: string; options?: string[]; required?: boolean; helper?: string };
+type SupportRequestInput = { requestType: string; details: string; requestData?: Record<string, string | boolean | null> };
+type ReviewMetric = { label: string; score: number; text: string; icon: LucideIcon; color: string };
 
 const allowSetupSkip = process.env.NODE_ENV !== "production";
 
@@ -106,7 +109,7 @@ const navItems: { label: NavKey; icon: LucideIcon; badge?: number }[] = [
   { label: "Document Vault", icon: FileText },
   { label: "AI Assistant", icon: Bot },
   { label: "Support Center", icon: Headphones },
-  { label: "Requests & Tickets", icon: TicketCheck },
+  { label: "Call Intake", icon: ClipboardCheck },
   { label: "Coverage Review", icon: ClipboardCheck },
   { label: "Notifications", icon: Bell, badge: 3 },
   { label: "Family & Household", icon: UsersRound },
@@ -130,10 +133,32 @@ function portfolioMetrics(policyData: Policy[], profile?: StoredProfile | null, 
   const premium = policyData.reduce((sum, item) => sum + money(item.premium), 0);
   const cash = policyData.reduce((sum, item) => sum + money(item.cashValue), 0);
   const beneficiaryRate = policyData.length ? Math.round(policyData.filter((item) => item.beneficiaries).length / policyData.length * 100) : 0;
-  const profileKeys = ["primaryGoal", "annualIncomeRange", "dependentsCount", "primaryBeneficiary", "emergencyContactName", "reviewFrequency"];
-  const complete = profileKeys.filter((key) => profile?.profile?.[key]).length;
-  const score = Math.min(100, Math.round(35 + complete / profileKeys.length * 35 + Math.min(policyData.length, 3) * 6 + Math.min(documents.length, 3) * 4));
+  const complete = READINESS_PROFILE_FIELDS.filter((key) => profile?.profile?.[key]).length;
+  const score = Math.min(100, Math.round(35 + complete / READINESS_PROFILE_FIELDS.length * 35 + Math.min(policyData.length, 3) * 6 + Math.min(documents.length, 3) * 4));
   return { benefit, premium, cash, beneficiaryRate, score };
+}
+
+function coverageReviewModel(policyData: Policy[], profile?: StoredProfile | null, documents: PortalDocument[] = []) {
+  const saved = profile?.profile || {};
+  const metrics = portfolioMetrics(policyData, profile, documents);
+  const policyWithDocs = policyData.length ? Math.round(policyData.filter((policy) => documents.some((doc) => doc.policyNumber === policy.id)).length / policyData.length * 100) : 0;
+  const beneficiaryScore = policyData.length ? metrics.beneficiaryRate : saved.primaryBeneficiary ? 70 : 35;
+  const reviewScore = saved.reviewFrequency ? 78 : 42;
+  const emergencyScore = saved.emergencyContactName && saved.emergencyContactPhone ? 100 : saved.emergencyContactName ? 70 : 35;
+  const reviewMetrics: ReviewMetric[] = [
+    { label: "Coverage facts", score: Math.min(100, Math.round(metrics.score)), text: policyData.length ? "Saved policies and onboarding facts are feeding this score." : "Upload at least one policy to replace estimates with record-backed facts.", icon: ShieldCheck, color: metrics.score > 74 ? "green" : metrics.score > 54 ? "orange" : "red" },
+    { label: "Beneficiaries", score: beneficiaryScore, text: `${metrics.beneficiaryRate}% of saved policies include beneficiary details in the portal.`, icon: UsersRound, color: beneficiaryScore > 79 ? "green" : beneficiaryScore > 49 ? "orange" : "red" },
+    { label: "Policy documents", score: Math.max(policyWithDocs, documents.length ? 68 : 30), text: documents.length ? `${documents.length} document${documents.length === 1 ? "" : "s"} saved in the vault.` : "No verified policy documents are attached yet.", icon: FolderLock, color: documents.length ? "green" : "orange" },
+    { label: "Review cadence", score: reviewScore, text: saved.reviewFrequency ? `Preferred review rhythm: ${saved.reviewFrequency}.` : "Set a review frequency to make reminders dependable.", icon: Clock3, color: reviewScore > 74 ? "green" : "orange" },
+    { label: "Emergency contacts", score: emergencyScore, text: emergencyScore === 100 ? "Emergency contact name and phone are saved." : "Add an emergency contact name and phone.", icon: Activity, color: emergencyScore > 79 ? "green" : "orange" },
+  ];
+  const nextActions = [
+    !documents.length && { title: "Upload the first policy document", detail: "Document Intelligence can verify carrier, policy number, benefits, premiums, and beneficiary language.", action: "Upload", modal: "upload" },
+    beneficiaryScore < 100 && { title: "Confirm beneficiary records", detail: "Portal notes do not change carrier designations, but they help flag what needs review.", action: "Review", modal: "beneficiary" },
+    !saved.reviewFrequency && { title: "Set an annual review rhythm", detail: "A scheduled review keeps coverage assumptions from going stale.", action: "Schedule", modal: "review" },
+    emergencyScore < 100 && { title: "Add emergency contact details", detail: "This helps a family member or advisor know who should be contacted first.", action: "Add", modal: "beneficiary" },
+  ].filter(Boolean) as { title: string; detail: string; action: string; modal: string }[];
+  return { score: metrics.score, reviewMetrics, nextActions: nextActions.slice(0, 3) };
 }
 
 function DataModeBanner({ sample }: { sample: boolean }) {
@@ -236,23 +261,37 @@ function PanelHeader({ title, action, onAction }: { title: string; action?: stri
   );
 }
 
-function ScoreRing() {
+function ScoreRing({ score }: { score: number }) {
   return (
-    <div className="score-ring" aria-label="Overall coverage score 81 percent">
-      <div className="score-ring-inner"><strong>81<span>%</span></strong><small>Overall Score</small></div>
+    <div className="score-ring" aria-label={`Overall coverage score ${score} percent`} style={{ "--score": `${score}%` } as React.CSSProperties}>
+      <div className="score-ring-inner"><strong>{score}<span>%</span></strong><small>Overall Score</small></div>
     </div>
   );
 }
 
-function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, documents, isSample }: { onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; policyData: Policy[]; profile: StoredProfile | null; documents: PortalDocument[]; isSample: boolean }) {
+function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, documents, requests, isSample }: { onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; policyData: Policy[]; profile: StoredProfile | null; documents: PortalDocument[]; requests: ServiceRequest[]; isSample: boolean }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const metrics = portfolioMetrics(policyData, profile, documents);
+  const review = coverageReviewModel(policyData, profile, documents);
+  const topAction = review.nextActions[0];
+  const sampleActivity = [
+    { id: "sample-doc-iul", icon: CheckCircle2, title: "Document uploaded", detail: "IUL_Statement_May2024.pdf", time: "Example", color: "green" },
+    { id: "sample-beneficiary", icon: UserRound, title: "Beneficiary updated", detail: "Whole Life Insurance", time: "Example", color: "blue" },
+    { id: "sample-ticket", icon: TicketCheck, title: "Ticket closed", detail: "Request for Proof of Insurance", time: "Example", color: "orange" },
+    { id: "sample-doc-term", icon: Upload, title: "Document uploaded", detail: "Term_Life_Policy.pdf", time: "Example", color: "purple" },
+  ];
+  const liveActivity = [
+    ...requests.slice(0, 3).map((request) => ({ id: `request-${request.id}`, icon: TicketCheck, title: `Request ${request.status.replaceAll("_", " ")}`, detail: `${request.requestType} · IS-${1000 + request.id}`, time: new Date(request.createdAt).toLocaleDateString(), color: request.status === "resolved" ? "green" : "orange" })),
+    ...documents.slice(0, 3).map((document) => ({ id: `document-${document.id}`, icon: FileCheck2, title: "Document processed", detail: document.fileName, time: new Date(document.createdAt).toLocaleDateString(), color: "blue" })),
+    ...policyData.filter((policy) => !policy.isSample).slice(0, 2).map((policy) => ({ id: `policy-${policy.id}`, icon: ShieldCheck, title: "Policy saved", detail: `${policy.type} · ${policy.carrier}`, time: "Saved", color: "green" })),
+  ].slice(0, 4);
+  const activityItems = isSample || !liveActivity.length ? sampleActivity : liveActivity;
 
   const ask = (text: string) => {
     const next = text.trim();
     if (!next) return;
     setQuestion("");
-    const metrics = portfolioMetrics(policyData, profile, documents);
     const liveAnswers: Record<string, string> = {
       "What happens if I pass away tomorrow?": `The policies saved in this portal show ${currency(metrics.benefit)} in total death benefits. Carrier approval and each policy's beneficiary designation control payment; confirm the original contracts before relying on this total.`,
       "Do I have enough life insurance?": `Your portal readiness score is ${metrics.score}/100. This is an organization and completeness score—not a recommendation. A licensed professional should compare your saved goals, income range, debts, and dependents with your actual contracts.`,
@@ -264,11 +303,19 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
   return (
     <>
       <DataModeBanner sample={isSample} />
+      <div className="priority-focus">
+        <span><Zap size={17} />Needs attention</span>
+        <div>
+          <strong>{topAction?.title || "Coverage file is organized"}</strong>
+          <p>{topAction?.detail || "Saved policies, documents, beneficiaries, review rhythm, and emergency contacts are in a good place."}</p>
+        </div>
+        <button className="secondary-button" onClick={() => onOpen(topAction?.modal || "review")}>{topAction?.action || "Review coverage"}</button>
+      </div>
       <div className="stat-grid">
-        <StatCard label="Portal Readiness" value={String(portfolioMetrics(policyData, profile, documents).score)} note="Based on saved data completeness" tone="green" icon={ShieldCheck} />
-        <StatCard label="Total Death Benefit" value={currency(portfolioMetrics(policyData, profile, documents).benefit)} note={`Across ${policyData.length} ${policyData.length === 1 ? "policy" : "policies"}`} tone="blue" icon={ShieldCheck} />
-        <StatCard label="Recorded Cash Value" value={currency(portfolioMetrics(policyData, profile, documents).cash)} note="Only values found in saved records" tone="green" icon={LineChart} />
-        <StatCard label="Monthly Premiums" value={currency(portfolioMetrics(policyData, profile, documents).premium)} note="Recorded monthly total" tone="purple" icon={CalendarDays} />
+        <StatCard label="Portal Readiness" value={String(metrics.score)} note="Based on saved data completeness" tone="green" icon={ShieldCheck} />
+        <StatCard label="Total Death Benefit" value={currency(metrics.benefit)} note={`Across ${policyData.length} ${policyData.length === 1 ? "policy" : "policies"}`} tone="blue" icon={ShieldCheck} />
+        <StatCard label="Recorded Cash Value" value={currency(metrics.cash)} note="Only values found in saved records" tone="green" icon={LineChart} />
+        <StatCard label="Monthly Premiums" value={currency(metrics.premium)} note="Recorded monthly total" tone="purple" icon={CalendarDays} />
       </div>
 
       <div className="dashboard-grid">
@@ -312,14 +359,8 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
         <Panel className="activity-panel">
           <PanelHeader title="Recent Activity" action="View All" onAction={() => onNavigate("Notifications")} />
           <div className="activity-list">
-            {[
-              [CheckCircle2, "Document uploaded", "IUL_Statement_May2024.pdf", "2h ago", "green"],
-              [UserRound, "Beneficiary updated", "Whole Life Insurance", "1d ago", "blue"],
-              [TicketCheck, "Ticket closed", "Request for Proof of Insurance", "2d ago", "orange"],
-              [Upload, "Document uploaded", "Term_Life_Policy.pdf", "3d ago", "purple"],
-            ].map(([Icon, title, detail, time, color]) => {
-              const ActivityIcon = Icon as LucideIcon;
-              return <div className="activity-row" key={String(title)}><span className={`activity-icon ${color}`}><ActivityIcon size={16} /></span><span><strong>{String(title)}</strong><small>{String(detail)}</small></span><time>{String(time)}</time></div>;
+            {activityItems.map(({ id, icon: ActivityIcon, title, detail, time, color }) => {
+              return <div className="activity-row" key={id}><span className={`activity-icon ${color}`}><ActivityIcon size={16} /></span><span><strong>{title}</strong><small>{detail}</small></span><time>{time}</time></div>;
             })}
           </div>
         </Panel>
@@ -327,21 +368,14 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
         <Panel className="review-panel">
           <PanelHeader title="Coverage Review" action="View Full Review" onAction={() => onNavigate("Coverage Review")} />
           <div className="review-content">
-            <ScoreRing />
+            <ScoreRing score={review.score} />
             <div className="score-bars">
-              {[
-                [ShieldCheck, "Coverage", 92, "green"],
-                [UsersRound, "Beneficiaries", 100, "green"],
-                [FolderLock, "Policy Organization", 68, "orange"],
-                [Clock3, "Reviews Up to Date", 42, "red"],
-                [Activity, "Emergency Contacts", 100, "green"],
-              ].map(([Icon, label, score, color]) => {
-                const BarIcon = Icon as LucideIcon;
-                return <div className="score-row" key={String(label)}><BarIcon size={14} /><span>{String(label)}</span><i><b className={String(color)} style={{ width: `${Number(score)}%` }} /></i><small>{String(score)}/100</small></div>;
+              {review.reviewMetrics.map(({ icon: BarIcon, label, score, color }) => {
+                return <div className="score-row" key={label}><BarIcon size={14} /><span>{label}</span><i><b className={color} style={{ width: `${score}%` }} /></i><small>{score}/100</small></div>;
               })}
             </div>
           </div>
-          <div className="tip-bar"><span><Zap size={17} /> Tip: Schedule your annual review to keep your score high.</span><button onClick={() => onOpen("review")}>Schedule Review</button></div>
+          <div className="tip-bar"><span><Zap size={17} /> Tip: {review.nextActions[0]?.title || "Your portal is in good shape."}</span><button onClick={() => onOpen(review.nextActions[0]?.modal || "review")}>{review.nextActions[0]?.action || "Review"}</button></div>
         </Panel>
 
         <Panel className="actions-panel">
@@ -395,11 +429,16 @@ function PoliciesView({ onPolicy, onOpen, notify, policyData, isSample }: { onPo
 
 function DocumentVaultView({ onOpen, notify, uploadedDocuments }: { onOpen: (modal: string) => void; notify: (message: string) => void; uploadedDocuments: PortalDocument[] }) {
   const [query, setQuery] = useState("");
-  const persistentDocuments = uploadedDocuments.map((doc) => ({ name: doc.fileName, policy: doc.policyNumber ? `Policy #${doc.policyNumber}` : "Unassigned policy", type: "AI-scanned policy", date: new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), size: doc.fileSize > 1048576 ? `${(doc.fileSize / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(doc.fileSize / 1024))} KB` }));
+  const [previewDocument, setPreviewDocument] = useState<{ id?: number; name: string; contentType?: string; previewUrl?: string } | null>(null);
+  const persistentDocuments = uploadedDocuments.map((doc) => ({ id: doc.id, name: doc.fileName, policy: doc.policyNumber ? `Policy #${doc.policyNumber}` : "Unassigned policy", type: doc.contentType === "text/plain" ? "Text policy file" : doc.contentType.startsWith("image/") ? "Policy image" : "AI-scanned policy", date: new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), size: doc.fileSize > 1048576 ? `${(doc.fileSize / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(doc.fileSize / 1024))} KB`, contentType: doc.contentType, previewUrl: `/api/documents/${doc.id}` }));
   const sampleDocuments = [{ name: "Sample_Whole_Life_Policy.pdf", policy: "Sample policy", type: "Policy contract", date: "Example", size: "2.4 MB" }, { name: "Sample_Annual_Statement.pdf", policy: "Sample policy", type: "Annual statement", date: "Example", size: "1.8 MB" }];
   const isSample = persistentDocuments.length === 0;
   const documents = (isSample ? sampleDocuments : persistentDocuments).filter((doc) => `${doc.name} ${doc.policy} ${doc.type}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="section-view"><ViewHeading eyebrow="Encrypted document storage" title="Document Vault" description="Keep contracts, statements, illustrations, and forms attached to the right policy." action={<button className="primary-button" onClick={() => onOpen("upload")}><Upload size={17} />Upload document</button>} /><DataModeBanner sample={isSample} /><div className="vault-banner"><div className="vault-shield"><LockKeyhole size={27} /></div><div><strong>Your vault is protected</strong><p>Files are stored by account and organized by policy.</p></div><span><ShieldCheck size={16} />Protected</span></div><Panel className="workspace-panel"><div className="workspace-toolbar"><div className="section-search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents" /></div><button className="secondary-button"><Filter size={16} />All file types</button></div><div className="document-table"><div className="table-head"><span>Document</span><span>Policy</span><span>Type</span><span>Uploaded</span><span></span></div>{documents.map((doc) => <div className="document-row" key={doc.name}><span className="document-name"><i><FileText size={19} /></i><span><strong>{doc.name}</strong><small>{doc.size}</small></span></span><span>{doc.policy}</span><span>{doc.type}</span><span>{doc.date}</span><span className="document-actions"><button aria-label={`Preview ${doc.name}`} onClick={() => notify(isSample ? "Sample preview only—upload a document to use secure storage." : `${doc.name} is saved securely; document preview is next on the roadmap.`)}><Eye size={17} /></button><button aria-label={`Download ${doc.name}`} onClick={() => notify(isSample ? "Sample files are illustrative and cannot be downloaded." : "Authenticated download is being prepared for this saved file.")}><Download size={17} /></button></span></div>)}</div></Panel></div>;
+  const download = (doc: typeof documents[number]) => {
+    if (!("previewUrl" in doc) || !doc.previewUrl) { notify("Sample files are illustrative and cannot be downloaded."); return; }
+    window.open(`${doc.previewUrl}?download=1`, "_blank", "noopener,noreferrer");
+  };
+  return <div className="section-view"><ViewHeading eyebrow="Encrypted document storage" title="Document Vault" description="Keep contracts, statements, illustrations, and forms attached to the right policy." action={<button className="primary-button" onClick={() => onOpen("upload")}><Upload size={17} />Upload document</button>} /><DataModeBanner sample={isSample} /><div className="vault-banner"><div className="vault-shield"><LockKeyhole size={27} /></div><div><strong>Your vault is protected</strong><p>Files are stored by account and organized by policy.</p></div><span><ShieldCheck size={16} />Protected</span></div><Panel className="workspace-panel"><div className="workspace-toolbar"><div className="section-search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents" aria-label="Search documents" /></div><button className="secondary-button"><Filter size={16} />All file types</button></div><div className="document-table"><div className="table-head"><span>Document</span><span>Policy</span><span>Type</span><span>Uploaded</span><span></span></div>{documents.map((doc) => <div className="document-row" key={doc.name}><span className="document-name"><i><FileText size={19} /></i><span><strong>{doc.name}</strong><small>{doc.size}</small></span></span><span>{doc.policy}</span><span>{doc.type}</span><span>{doc.date}</span><span className="document-actions"><button aria-label={`Preview ${doc.name}`} onClick={() => "previewUrl" in doc && doc.previewUrl ? setPreviewDocument(doc) : notify("Sample preview only—upload a document to use secure storage.")}><Eye size={17} /></button><button aria-label={`Download ${doc.name}`} onClick={() => download(doc)}><Download size={17} /></button></span></div>)}</div></Panel>{previewDocument && <div className="document-preview-modal" role="dialog" aria-modal="true" aria-label={`Preview ${previewDocument.name}`}><div className="document-preview-card"><header><div><strong>{previewDocument.name}</strong><small>Authenticated vault preview</small></div><button aria-label="Close preview" onClick={() => setPreviewDocument(null)}><X size={18} /></button></header><iframe title={previewDocument.name} src={previewDocument.previewUrl} /></div></div>}</div>;
 }
 
 function AssistantView({ onOpen }: { onOpen: (modal: string) => void }) {
@@ -410,15 +449,88 @@ function AssistantView({ onOpen }: { onOpen: (modal: string) => void }) {
   return <div className="section-view assistant-page"><ViewHeading eyebrow="Trained answers with human handoff" title="AI Insurance Assistant" description="The assistant answers from approved knowledge and escalates anything it cannot handle." action={<span className="ai-status"><i />Online 24/7</span>} /><div className="assistant-workspace"><Panel className="chat-panel"><div className="chat-top"><span><Sparkles size={20} /></span><div><strong>InsurSuite AI</strong><small>Approved knowledge, saved policy context, and customer-service handoff</small></div></div><div className="message-thread">{messages.map((message, index) => <div className={`chat-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "assistant" ? <Sparkles size={17} /> : "You"}</span><p>{message.text}{message.escalated && <small className="escalation-label">Human handoff created</small>}</p></div>)}</div><div className="suggestion-chips">{aiPrompts.slice(1,4).map((prompt) => <button key={prompt} onClick={() => ask(prompt)}>{prompt}</button>)}</div><form className="chat-composer" onSubmit={(e) => { e.preventDefault(); ask(input); }}><button type="button" aria-label="Attach a document"><Paperclip size={19} /></button><input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about your coverage..." aria-label="Message InsurSuite AI" /><button type="submit" disabled={sending} aria-label="Send message"><Send size={18} /></button></form></Panel><aside className="assistant-context"><Panel><PanelHeader title="How this works" /><div className="context-stat"><Bot size={18} /><span><strong>1. Bot attempts answer</strong><small>Uses approved Q&A and saved policy context</small></span></div><div className="context-stat"><TicketCheck size={18} /><span><strong>2. Unresolved becomes ticket</strong><small>Conversation is attached automatically</small></span></div><div className="context-stat"><Headphones size={18} /><span><strong>3. Representative takes over</strong><small>Assigned agent receives an alert</small></span></div></Panel><Panel className="human-help"><UsersRound size={25} /><h3>Ask for a person anytime</h3><p>Create a direct request when the matter is urgent or needs licensed advice.</p><button className="secondary-button full" onClick={() => onOpen("ticket")}><MessageCircle size={17} />Create a request</button></Panel></aside></div></div>;
 }
 
-function SupportView({ onOpen, notify }: { onOpen: (modal: string) => void; notify: (message: string) => void }) {
-  const topics = [[WalletCards, "Policy help", "Coverage details, changes, and carrier questions"], [FileText, "Documents", "Upload, organize, or request policy paperwork"], [UsersRound, "Beneficiaries", "Review or change beneficiary information"], [CalendarDays, "Billing & drafts", "Premium schedules and payment questions"]] as const;
-  return <div className="section-view"><ViewHeading eyebrow="Human support when it matters" title="Support Center" description="Find an answer, create a request, or reach your dedicated coverage team." action={<button className="primary-button" onClick={() => onOpen("ticket")}><Plus size={17} />New request</button>} /><div className="support-hero"><div><span>Average reply time</span><strong>Under 15 minutes</strong><p>Your concierge team is online and ready to help.</p></div><button onClick={() => onOpen("concierge")}><MessageCircle size={19} />Start a conversation</button></div><div className="topic-grid">{topics.map(([Icon, title, text]) => <button key={title} onClick={() => notify(`${title} help articles opened.`)}><span><Icon size={22} /></span><strong>{title}</strong><p>{text}</p><ArrowRight size={17} /></button>)}</div><div className="support-columns"><Panel><PanelHeader title="Popular questions" /><div className="faq-list">{["How do I add a policy I bought elsewhere?", "What happens after I submit a service request?", "How often should I review my coverage?", "Can InsurSuite help with an existing claim?"].map((question) => <button key={question} onClick={() => notify("Help article opened.")}><span>{question}</span><ChevronRight size={17} /></button>)}</div></Panel><Panel><PanelHeader title="Your support team" /><div className="team-member"><span className="avatar">MC</span><div><strong>Maya Carter</strong><small>Dedicated coverage consultant</small></div><span className="online-dot">Online</span></div><div className="team-member"><span className="avatar support-avatar">IS</span><div><strong>InsurSuite Concierge</strong><small>Policy service team</small></div><span className="online-dot">Online</span></div><div className="contact-row"><button onClick={() => onOpen("concierge")}><MessageCircle size={17} />Message</button><button onClick={() => notify("A callback was requested for today.")}><Phone size={17} />Request call</button></div></Panel></div></div>;
+function SupportView({ onOpen, notify, requests, onCreateRequest }: { onOpen: (modal: string) => void; notify: (message: string) => void; requests: ServiceRequest[]; onCreateRequest: (input: SupportRequestInput) => Promise<ServiceRequest | null> }) {
+  const [draft, setDraft] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [messages, setMessages] = useState<{ role: "consultant" | "user" | "event"; text: string; time: string }[]>([
+    { role: "consultant", text: "Hi, I’m Maya. Choose an option below or tell me what you need. I can answer, collect details, and create a tracked request from this same conversation.", time: "Just now" },
+  ]);
+  const supportOptions = [
+    { label: "Coverage review", icon: ClipboardCheck, requestType: "Coverage review", details: "Client requested a coverage review from the support chat.", urgency: "Standard - within 1 business day" },
+    { label: "Policy document", icon: FileText, requestType: "Proof or policy document", details: "Client needs help locating, requesting, or reviewing a policy document.", urgency: "Standard - within 1 business day" },
+    { label: "Billing issue", icon: CalendarDays, requestType: "Billing or premium issue", details: "Client has a billing, draft, or premium question.", urgency: "Time-sensitive - within 4 business hours" },
+    { label: "Beneficiary change", icon: UsersRound, requestType: "Beneficiary update", details: "Client wants help reviewing or changing beneficiary information.", urgency: "Standard - within 1 business day" },
+    { label: "Claim support", icon: HeartHandshake, requestType: "Claim support", details: "Client needs claim support or help understanding claim next steps.", urgency: "Urgent - coverage or payment at risk" },
+    { label: "Account help", icon: CircleHelp, requestType: "Account or portal help", details: "Client needs help using the InsurSuite portal.", urgency: "Standard - within 1 business day" },
+  ];
+  const visibleRequests = requests.slice(0, 5);
+  const sendMessage = (text: string) => {
+    const message = text.trim();
+    if (!message) return;
+    setMessages((current) => [...current, { role: "user", text: message, time: "Now" }, { role: "consultant", text: "I can help with that. Use one of the request buttons above when this needs tracking, or keep typing here and I’ll keep the context together.", time: "Now" }]);
+    setDraft("");
+  };
+  const startRequest = async (option: typeof supportOptions[number]) => {
+    if (creating) return;
+    setCreating(true);
+    setMessages((current) => [...current, { role: "user", text: option.label, time: "Now" }, { role: "consultant", text: `I’m opening a ${option.requestType.toLowerCase()} request and attaching this conversation context.`, time: "Now" }]);
+    const request = await onCreateRequest({
+      requestType: option.requestType,
+      details: option.details,
+      requestData: {
+        urgency: option.urgency,
+        contactMethod: "Secure portal message",
+        bestContactTime: "Any time",
+        desiredOutcome: `Help with ${option.label.toLowerCase()}`,
+        authorization: true,
+      },
+    });
+    setMessages((current) => [...current, { role: "event", text: request ? `Request IS-${1000 + request.id} was created and added to your support timeline.` : "I could not create the request yet. You can keep chatting or try the full request form.", time: "Now" }]);
+    setCreating(false);
+  };
+  return <div className="section-view support-hub-view"><ViewHeading eyebrow="Conversation-first support" title="Support Center" description="Chat with your concierge, create tracked requests, and follow ticket progress from one workspace." action={<button className="primary-button" onClick={() => onOpen("ticket")}><Plus size={17} />Full request form</button>} /><section className="support-command"><div className="support-chat-main"><div className="support-chat-header"><div className="consultant inline-consultant"><span className="avatar">MC</span><span><strong>Maya Carter</strong><small>Dedicated consultant · Online now</small></span><i /></div><div className="support-action-bar">{supportOptions.map(({ label, icon: Icon, ...option }) => <button key={label} type="button" onClick={() => startRequest({ label, icon: Icon, ...option })} disabled={creating}><Icon size={16} />{label}</button>)}</div></div><div className="support-thread" aria-live="polite">{messages.map((message, index) => <div className={`support-bubble ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "consultant" ? "MC" : message.role === "event" ? <TicketCheck size={15} /> : "You"}</span><p>{message.text}<small>{message.time}</small></p></div>)}{messages.length === 1 && <div className="preloaded-options"><strong>Start with one of these</strong><div>{supportOptions.slice(0, 4).map(({ label, icon: Icon, ...option }) => <button key={label} type="button" onClick={() => startRequest({ label, icon: Icon, ...option })}><Icon size={18} /><span>{label}</span></button>)}</div></div>}</div><form className="support-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(draft); }}><button type="button" aria-label="Attach document" onClick={() => onOpen("upload")}><Paperclip size={18} /></button><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Message support or describe what you need..." aria-label="Message support" /><button type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button></form></div><aside className="support-sidecar"><Panel><PanelHeader title="Active requests" /><div className="merged-ticket-list">{visibleRequests.length ? visibleRequests.map((request) => <article key={request.id}><span className={`ticket-status ${request.status.toLowerCase().replaceAll("_", "-")}`} /><div><strong>{request.requestType}</strong><small>IS-{1000 + request.id} · {request.status.replaceAll("_", " ")}</small></div><button aria-label={`Open IS-${1000 + request.id}`} onClick={() => notify(`Request IS-${1000 + request.id} opened in the support timeline.`)}><ChevronRight size={16} /></button></article>) : <div className="empty-state compact"><TicketCheck size={24} /><strong>No active requests</strong><p>Choose an option in the chat to create one.</p></div>}</div></Panel><Panel><PanelHeader title="What this chat can do" /><div className="support-capabilities"><span><MessageCircle size={16} />Answer quick questions</span><span><TicketCheck size={16} />Create service requests</span><span><Upload size={16} />Attach documents</span><span><Phone size={16} />Request a callback</span></div></Panel></aside></section></div>;
 }
 
-function TicketsView({ onOpen, requests }: { onOpen: (modal: string) => void; requests: ServiceRequest[] }) {
-  const [filter, setFilter] = useState("All");
-  const tickets = requests.map((request) => ({ id: `IS-${1000 + request.id}`, title: request.requestType, policy: request.details || "No additional details", status: request.status.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase()), updated: new Date(request.createdAt).toLocaleDateString() })).filter((ticket) => filter === "All" || ticket.status === filter);
-  return <div className="section-view"><ViewHeading eyebrow="Service request tracking" title="Requests & Tickets" description="Track every carrier request without chasing emails or wondering what comes next." action={<button className="primary-button" onClick={() => onOpen("ticket")}><Plus size={17} />Create request</button>} /><div className="ticket-stats"><div><TicketCheck size={21} /><span><strong>2</strong><small>Open requests</small></span></div><div><Clock3 size={21} /><span><strong>1</strong><small>Needs your reply</small></span></div><div><CheckCircle2 size={21} /><span><strong>7</strong><small>Resolved this year</small></span></div></div><Panel className="workspace-panel"><div className="tab-filter">{["All", "In progress", "Waiting on you", "Resolved"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="ticket-list">{tickets.map((ticket) => <article key={ticket.id}><span className={`ticket-status ${ticket.status.toLowerCase().replaceAll(" ", "-")}`} /><div><strong>{ticket.title}</strong><small>{ticket.id} · {ticket.policy}</small></div><span className={`status-chip ${ticket.status.toLowerCase().replaceAll(" ", "-")}`}>{ticket.status}</span><time>{ticket.updated}</time><button aria-label={`Open ${ticket.id}`}><ChevronRight size={18} /></button></article>)}</div></Panel></div>;
+function CallIntakeView({ profile, policyData, documents, notify, onSave }: { profile: StoredProfile | null; policyData: Policy[]; documents: PortalDocument[]; notify: (message: string) => void; onSave: (patch: Record<string, string | boolean>) => Promise<StoredProfile | null> }) {
+  const [activeSection, setActiveSection] = useState("Goals");
+  const [saving, setSaving] = useState(false);
+  const [fields, setFields] = useState<Record<string, string | boolean>>({
+    underwritingStatus: "Call in progress",
+    underwritingPriority: "Normal",
+    coverageNeed: "",
+    policyPurpose: "",
+    nicotineUse: "",
+    heightWeight: "",
+    healthNotes: "",
+    medications: "",
+    familyHealthHistory: "",
+    drivingHistory: "",
+    hazardousActivities: "",
+    advisorQuestions: "",
+    missingDocuments: "",
+    callOutcome: "",
+    underwritingCallNotes: "",
+    ...(profile?.profile || {}),
+  });
+  const sections = [
+    { name: "Goals", icon: ShieldCheck, questions: ["What made you want to review coverage now?", "Who are we protecting financially?", "What outcome would make this call successful?"], fields: [["primaryGoal", "Primary goal"], ["coverageNeed", "Coverage need"], ["policyPurpose", "Policy purpose"], ["monthlyCoverageBudget", "Monthly budget"]] },
+    { name: "Household", icon: UsersRound, questions: ["Who depends on your income?", "Any upcoming household changes?", "Who should be contacted in an emergency?"], fields: [["maritalStatus", "Marital status"], ["dependentsCount", "Dependents"], ["lifeEvents", "Upcoming life changes"], ["emergencyContactName", "Emergency contact"]] },
+    { name: "Financials", icon: WalletCards, questions: ["What income should coverage protect?", "Any mortgage or major debt?", "Any business obligations or key-person exposure?"], fields: [["annualIncomeRange", "Annual income range"], ["mortgageBalance", "Mortgage balance"], ["otherDebt", "Other debt"], ["businessObligations", "Business obligations"]] },
+    { name: "Health", icon: HeartHandshake, questions: ["Any nicotine use in the last 12 months?", "Current height and weight?", "Any major diagnoses, prescriptions, or pending tests?"], fields: [["nicotineUse", "Nicotine use"], ["heightWeight", "Height / weight"], ["healthNotes", "Health notes"], ["medications", "Medications"]] },
+    { name: "Risk", icon: Activity, questions: ["Any moving violations, DUI, or license issues?", "Any hazardous hobbies, aviation, racing, diving, or military risk?", "Any family history that may matter for underwriting?"], fields: [["drivingHistory", "Driving history"], ["hazardousActivities", "Hazardous activities"], ["familyHealthHistory", "Family health history"], ["policyConcerns", "Policy concerns"]] },
+    { name: "Wrap", icon: CheckCircle2, questions: ["What documents do we still need?", "What questions should the advisor answer next?", "What is the agreed next step?"], fields: [["missingDocuments", "Missing documents"], ["advisorQuestions", "Advisor questions"], ["callOutcome", "Call outcome"], ["underwritingPriority", "Priority"]] },
+  ];
+  const completed = CALL_INTAKE_REQUIRED_FIELDS.filter((key) => String(fields[key] || "").trim()).length;
+  const active = sections.find((section) => section.name === activeSection) || sections[0];
+  const update = (key: string, value: string) => setFields((current) => ({ ...current, [key]: value }));
+  const appendNote = (text: string) => setFields((current) => ({ ...current, underwritingCallNotes: `${String(current.underwritingCallNotes || "").trim()}${current.underwritingCallNotes ? "\n" : ""}${text}` }));
+  const save = async () => {
+    setSaving(true);
+    const saved = await onSave(fields);
+    setSaving(false);
+    notify(saved ? "Call intake saved to the client profile." : "Could not save the call intake.");
+  };
+  return <div className="section-view call-intake-view"><ViewHeading eyebrow="Live client call workspace" title="Call Intake" description="Ask questions, capture underwriting details, and leave the call with a usable advisor-ready client profile." action={<button className="primary-button" onClick={save} disabled={saving}><CheckCircle2 size={17} />{saving ? "Saving..." : "Save intake"}</button>} /><div className="call-command"><aside className="call-script"><Panel><PanelHeader title="Call flow" /><div className="call-progress"><strong>{completed}/{CALL_INTAKE_REQUIRED_FIELDS.length}</strong><span><i style={{ width: `${Math.round(completed / CALL_INTAKE_REQUIRED_FIELDS.length * 100)}%` }} /></span><small>Core underwriting facts captured</small></div><nav>{sections.map(({ name, icon: Icon }) => <button key={name} className={activeSection === name ? "active" : ""} onClick={() => setActiveSection(name)}><Icon size={16} />{name}</button>)}</nav></Panel><Panel><PanelHeader title="Suggested questions" /><div className="question-stack">{active.questions.map((question) => <button key={question} onClick={() => appendNote(`Asked: ${question}`)}><MessageCircle size={15} />{question}</button>)}</div></Panel></aside><Panel className="underwriting-sheet"><div className="sheet-head"><div><span>{active.name}</span><h3>Underwriting Sheet</h3></div><select value={String(fields.underwritingStatus || "Call in progress")} onChange={(event) => update("underwritingStatus", event.target.value)} aria-label="Underwriting status"><option>Call in progress</option><option>Waiting on documents</option><option>Ready for advisor review</option><option>Application likely</option><option>Not a fit yet</option></select></div><div className="sheet-grid">{active.fields.map(([key, label]) => <label key={key}>{label}{key === "policyConcerns" || key === "healthNotes" || key === "businessObligations" || key === "lifeEvents" ? <textarea value={String(fields[key] || "")} onChange={(event) => update(key, event.target.value)} placeholder={`Capture ${label.toLowerCase()}...`} /> : <input value={String(fields[key] || "")} onChange={(event) => update(key, event.target.value)} placeholder={`Add ${label.toLowerCase()}`} />}</label>)}</div><div className="call-record-strip"><span><FileText size={16} />{documents.length} vault document{documents.length === 1 ? "" : "s"}</span><span><ShieldCheck size={16} />{policyData.length} saved polic{policyData.length === 1 ? "y" : "ies"}</span><span><Clock3 size={16} />Status: {String(fields.underwritingStatus || "Call in progress")}</span></div></Panel><aside className="call-notes"><Panel><PanelHeader title="Live notes" /><textarea value={String(fields.underwritingCallNotes || "")} onChange={(event) => update("underwritingCallNotes", event.target.value)} placeholder="Type raw notes while the client talks. Use the guided questions to add prompts here as you go." /><div className="note-actions"><button onClick={() => appendNote("Client wants advisor follow-up.")}>Advisor follow-up</button><button onClick={() => appendNote("Need policy document upload.")}>Need docs</button><button onClick={() => appendNote("Potential underwriting concern.")}>Risk concern</button></div></Panel><Panel><PanelHeader title="Next step" /><label className="call-outcome">Call outcome<textarea value={String(fields.callOutcome || "")} onChange={(event) => update("callOutcome", event.target.value)} placeholder="Example: send term quote, request statements, schedule advisor review..." /></label><button className="secondary-button full" onClick={save} disabled={saving}><Check size={16} />Save call notes</button></Panel></aside></div></div>;
 }
 
 function AgentConsole() {
@@ -432,9 +544,10 @@ function AgentConsole() {
   return <div className="section-view"><ViewHeading eyebrow="Customer service operations" title="Agent Console" description="New client and chatbot tickets are assigned here automatically." /><div className="agent-console-grid"><Panel><PanelHeader title={`My assigned queue (${queue.filter((item) => item.status !== "resolved").length})`} /><div className="agent-queue">{queue.map((item) => <article key={item.id} className={item.unreadByAgent ? "unread" : ""}><div><strong>{item.clientName}</strong><span>{item.requestType} · IS-{1000 + item.id}{item.priority === "urgent" ? " · URGENT" : ""}</span><p>{item.details}</p>{item.requestData && <dl className="agent-intake-details">{Object.entries(item.requestData).filter(([, value]) => value && value !== "on").map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, " $1")}</dt><dd>{String(value)}</dd></div>)}</dl>}<small>{item.source === "chatbot" ? "Escalated by chatbot" : "Submitted by client form"}</small></div><select value={item.status} onChange={(e) => update(item.id, e.target.value)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="waiting_on_client">Waiting on client</option><option value="resolved">Resolved</option></select></article>)}{!queue.length && <div className="empty-state"><CheckCircle2 size={28} /><strong>Queue is clear</strong><p>New assigned tickets will appear here.</p></div>}</div></Panel><Panel><PanelHeader title="Train the chatbot" /><form className="knowledge-form" onSubmit={addKnowledge}><label>Customer question<input name="question" required placeholder="How do I change a beneficiary?" /></label><label>Keywords<input name="keywords" placeholder="beneficiary, change, update" /></label><label>Approved answer<textarea name="answer" required placeholder="Write the exact safe answer the bot should use..." /></label><button className="primary-button">Publish answer</button>{notice && <small>{notice}</small>}</form><div className="knowledge-list"><strong>{entries.length} approved answers</strong>{entries.slice(0,5).map((entry) => <p key={entry.id}>{entry.question}</p>)}</div></Panel></div></div>;
 }
 
-function CoverageView({ onOpen }: { onOpen: (modal: string) => void }) {
-  const metrics = [{ label: "Coverage amount", score: 92, text: "Your protection is strong for the needs saved in your profile.", icon: ShieldCheck, color: "green" }, { label: "Beneficiaries", score: 100, text: "Every active policy has a beneficiary on file.", icon: UsersRound, color: "green" }, { label: "Policy organization", score: 68, text: "Two policy documents still need updated statements.", icon: FolderLock, color: "orange" }, { label: "Reviews up to date", score: 42, text: "Your annual coverage review is ready to schedule.", icon: Clock3, color: "red" }];
-  return <div className="section-view"><ViewHeading eyebrow="Annual protection checkup" title="Coverage Review" description="A simple view of what is strong, what changed, and what deserves attention." action={<button className="primary-button" onClick={() => onOpen("review")}><CalendarDays size={17} />Schedule review</button>} /><div className="coverage-hero"><div className="large-score-ring"><div><strong>86</strong><span>/100</span><small>Good coverage</small></div></div><div><span className="pill blue">Updated today</span><h3>Your protection is in good shape.</h3><p>You have strong overall coverage and current beneficiaries. Finishing your annual review and adding two updated statements could raise your score above 90.</p><button className="secondary-button" onClick={() => onOpen("review")}><CalendarDays size={16} />Complete annual review</button></div></div><div className="review-metric-grid">{metrics.map(({ label, score, text, icon: Icon, color }) => <Panel key={label} className="review-metric"><div className={`metric-icon ${color}`}><Icon size={21} /></div><div className="metric-title"><strong>{label}</strong><span>{score}/100</span></div><div className="metric-progress"><i className={color} style={{ width: `${score}%` }} /></div><p>{text}</p></Panel>)}</div><Panel className="recommendations"><PanelHeader title="Recommended next steps" /><div><span><strong>1</strong></span><p><strong>Schedule your 2026 coverage review</strong><small>Confirm your income, debt, household, and goals still match the plan.</small></p><button onClick={() => onOpen("review")}>Schedule</button></div><div><span><strong>2</strong></span><p><strong>Add your latest Whole Life statement</strong><small>Keep cash value and loan availability current.</small></p><button onClick={() => onOpen("upload")}>Upload</button></div></Panel></div>;
+function CoverageView({ onOpen, policyData, profile, documents }: { onOpen: (modal: string) => void; policyData: Policy[]; profile: StoredProfile | null; documents: PortalDocument[] }) {
+  const review = coverageReviewModel(policyData, profile, documents);
+  const headline = review.score >= 80 ? "Your protection file is in good shape." : review.score >= 60 ? "A few gaps need attention." : "Start by verifying the core coverage records.";
+  return <div className="section-view"><ViewHeading eyebrow="Annual protection checkup" title="Coverage Review" description="A simple view of what is strong, what changed, and what deserves attention." action={<button className="primary-button" onClick={() => onOpen("review")}><CalendarDays size={17} />Schedule review</button>} /><div className="coverage-hero"><div className="large-score-ring" style={{ "--score": `${review.score}%` } as React.CSSProperties}><div><strong>{review.score}</strong><span>/100</span><small>Readiness score</small></div></div><div><span className="pill blue">Updated from saved records</span><h3>{headline}</h3><p>{review.nextActions[0]?.detail || "Saved policies, documents, beneficiaries, review rhythm, and emergency contacts are all contributing to this view."}</p><button className="secondary-button" onClick={() => onOpen(review.nextActions[0]?.modal || "review")}><CalendarDays size={16} />{review.nextActions[0]?.action || "Complete review"}</button></div></div><div className="review-metric-grid">{review.reviewMetrics.map(({ label, score, text, icon: Icon, color }) => <Panel key={label} className="review-metric"><div className={`metric-icon ${color}`}><Icon size={21} /></div><div className="metric-title"><strong>{label}</strong><span>{score}/100</span></div><div className="metric-progress"><i className={color} style={{ width: `${score}%` }} /></div><p>{text}</p></Panel>)}</div><Panel className="recommendations"><PanelHeader title="Recommended next steps" />{review.nextActions.length ? review.nextActions.map((item, index) => <div key={item.title}><span><strong>{index + 1}</strong></span><p><strong>{item.title}</strong><small>{item.detail}</small></p><button onClick={() => onOpen(item.modal)}>{item.action}</button></div>) : <div><span><strong>1</strong></span><p><strong>Keep your review cadence</strong><small>Your core records are complete. Recheck whenever household, income, debt, or beneficiary details change.</small></p><button onClick={() => onOpen("review")}>Schedule</button></div>}</Panel></div>;
 }
 
 function NotificationsView({ notify }: { notify: (message: string) => void }) {
@@ -457,14 +570,14 @@ function SettingsView({ notify }: { notify: (message: string) => void }) {
   return <div className="section-view"><ViewHeading eyebrow="Account preferences" title="Settings" description="Manage your profile, security, and how InsurSuite keeps you informed." /><div className="settings-layout"><aside className="settings-nav"><button className="active"><UserRound size={17} />Profile</button><button><Bell size={17} />Notifications</button><button><LockKeyhole size={17} />Security</button><button><Gem size={17} />Plan & billing</button></aside><div className="settings-content"><Panel><PanelHeader title="Profile information" /><div className="profile-block"><span className="avatar big">JM</span><div><strong>Jordan McNutt</strong><small>Account owner since July 2026</small></div><button className="secondary-button">Change photo</button></div><form className="settings-form" onSubmit={(e) => { e.preventDefault(); notify("Profile settings saved."); }}><label>Full name<input defaultValue="Jordan McNutt" /></label><label>Email address<input defaultValue="jordan@example.com" type="email" /></label><label>Phone number<input defaultValue="(214) 555-0148" /></label><label>State<select defaultValue="Texas"><option>Texas</option><option>Oklahoma</option><option>Florida</option></select></label><button className="primary-button" type="submit">Save changes</button></form></Panel><Panel><PanelHeader title="Notification preferences" /><div className="preference-list">{[["email", "Email updates", "Policy, ticket, and account activity"], ["sms", "Text reminders", "Draft dates and scheduled reviews"], ["policy", "Coverage alerts", "Missing details and annual review prompts"], ["marketing", "Product news", "New InsurSuite features and offers"]].map(([key, title, detail]) => <div key={key}><span><strong>{title}</strong><small>{detail}</small></span><button className={`toggle ${preferences[key as keyof typeof preferences] ? "on" : ""}`} onClick={() => toggle(key as keyof typeof preferences)} aria-label={`Toggle ${title}`}><i /></button></div>)}</div></Panel></div></div></div>;
 }
 
-function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyData, uploadedDocuments, profile, isSample, requests }: { active: NavKey; onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; notify: (message: string) => void; policyData: Policy[]; uploadedDocuments: PortalDocument[]; profile: StoredProfile | null; isSample: boolean; requests: ServiceRequest[] }) {
-  if (active === "Dashboard") return <Dashboard onNavigate={onNavigate} onPolicy={onPolicy} onOpen={onOpen} policyData={policyData} profile={profile} documents={uploadedDocuments} isSample={isSample} />;
+function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyData, uploadedDocuments, profile, isSample, requests, onCreateRequest, onSaveProfile }: { active: NavKey; onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; notify: (message: string) => void; policyData: Policy[]; uploadedDocuments: PortalDocument[]; profile: StoredProfile | null; isSample: boolean; requests: ServiceRequest[]; onCreateRequest: (input: SupportRequestInput) => Promise<ServiceRequest | null>; onSaveProfile: (patch: Record<string, string | boolean>) => Promise<StoredProfile | null> }) {
+  if (active === "Dashboard") return <Dashboard onNavigate={onNavigate} onPolicy={onPolicy} onOpen={onOpen} policyData={policyData} profile={profile} documents={uploadedDocuments} requests={requests} isSample={isSample} />;
   if (active === "My Policies") return <PoliciesView onPolicy={onPolicy} onOpen={onOpen} notify={notify} policyData={policyData} isSample={isSample} />;
   if (active === "Document Vault") return <DocumentVaultView onOpen={onOpen} notify={notify} uploadedDocuments={uploadedDocuments} />;
   if (active === "AI Assistant") return <AssistantView onOpen={onOpen} />;
-  if (active === "Support Center") return <SupportView onOpen={onOpen} notify={notify} />;
-  if (active === "Requests & Tickets") return <TicketsView onOpen={onOpen} requests={requests} />;
-  if (active === "Coverage Review") return <CoverageView onOpen={onOpen} />;
+  if (active === "Support Center") return <SupportView onOpen={onOpen} notify={notify} requests={requests} onCreateRequest={onCreateRequest} />;
+  if (active === "Call Intake") return <CallIntakeView profile={profile} policyData={policyData} documents={uploadedDocuments} notify={notify} onSave={onSaveProfile} />;
+  if (active === "Coverage Review") return <CoverageView onOpen={onOpen} policyData={policyData} profile={profile} documents={uploadedDocuments} />;
   if (active === "Notifications") return <NotificationsView notify={notify} />;
   if (active === "Family & Household") return <FamilyView onOpen={onOpen} notify={notify} />;
   if (active === "Claims Concierge") return <ClaimsView onOpen={onOpen} notify={notify} />;
@@ -481,6 +594,28 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       </div>
     </div>
   );
+}
+
+function ConciergeChat() {
+  const [draft, setDraft] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "consultant" as const, text: "Hi, I’m Maya. I can help with policy questions, billing, beneficiaries, claims, or getting a request routed to the right person.", time: "Just now" },
+    { role: "consultant" as const, text: "What would you like help with today?", time: "Just now" },
+  ]);
+  const quickReplies = ["Review my coverage", "I need a policy document", "Billing question", "Beneficiary change"];
+  const send = (text: string) => {
+    const message = text.trim();
+    if (!message || typing) return;
+    setMessages((current) => [...current, { role: "user", text: message, time: "Now" }]);
+    setDraft("");
+    setTyping(true);
+    window.setTimeout(() => {
+      setMessages((current) => [...current, { role: "consultant", text: "Got it. I’ll keep this in the conversation and can turn it into a tracked service request if it needs follow-up from the team.", time: "Now" }]);
+      setTyping(false);
+    }, 850);
+  };
+  return <div className="concierge-chat"><div className="consultant chat-consultant"><span className="avatar">MC</span><span><strong>Maya Carter</strong><small>Your dedicated coverage consultant · Online now</small></span><i /></div><div className="concierge-thread" aria-live="polite">{messages.map((message, index) => <div className={`concierge-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "consultant" ? "MC" : "You"}</span><p>{message.text}<small>{message.time}</small></p></div>)}{typing && <div className="concierge-message consultant typing"><span>MC</span><p><b /><b /><b /></p></div>}</div><div className="concierge-quick-replies">{quickReplies.map((reply) => <button type="button" key={reply} onClick={() => send(reply)}>{reply}</button>)}</div><form className="concierge-composer" onSubmit={(event) => { event.preventDefault(); send(draft); }}><button type="button" aria-label="Attach document"><Paperclip size={18} /></button><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Message Maya..." aria-label="Message Maya" /><button type="submit" disabled={!draft.trim() || typing} aria-label="Send message"><Send size={17} /></button></form><div className="concierge-handoff"><Clock3 size={15} /><span>Replies here are saved as conversation context. Carrier changes, claims, payment issues, and licensed advice should become tracked requests.</span></div></div>;
 }
 
 const intakeSections: { title: string; short: string; description: string; fields: IntakeField[] }[] = [
@@ -668,15 +803,40 @@ export default function HomePage() {
     }
   };
 
+  const createServiceRequest = async ({ requestType, details, requestData = {} }: SupportRequestInput) => {
+    const response = await fetch("/api/service-requests", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestType, details, requestData }) });
+    const result = await response.json();
+    if (!response.ok) { setToast(result.error || "Could not save the request"); return null; }
+    setStoredRequests((current) => [result.request, ...current]);
+    notify(`Request #IS-${String(1000 + Number(result.request.id || 0))} created${result.request.assignedTo ? " and assigned to a representative" : " and queued"}.`);
+    return result.request as ServiceRequest;
+  };
+
+  const saveProfilePatch = async (patch: Record<string, string | boolean>) => {
+    if (!storedProfile) return null;
+    const response = await fetch("/api/client-profile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fullName: storedProfile.fullName,
+        phone: storedProfile.phone,
+        dateOfBirth: storedProfile.dateOfBirth,
+        onboardingStatus: storedProfile.onboardingStatus || "completed",
+        onboardingStep: storedProfile.onboardingStep || intakeSections.length,
+        profile: { ...(storedProfile.profile || {}), ...patch },
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) { setToast(result.error || "Could not save profile"); return null; }
+    setStoredProfile(result.profile);
+    return result.profile as StoredProfile;
+  };
+
   const submitServiceRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const requestData = { policyNumber: form.get("policyNumber"), urgency: form.get("urgency"), contactMethod: form.get("contactMethod"), bestContactTime: form.get("bestContactTime"), desiredOutcome: form.get("desiredOutcome"), effectiveDate: form.get("effectiveDate"), amountInQuestion: form.get("amountInQuestion"), carrierContacted: form.get("carrierContacted"), documentsAvailable: form.get("documentsAvailable"), authorization: form.get("authorization") === "on" };
-    const response = await fetch("/api/service-requests", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestType: form.get("requestType"), details: form.get("details"), requestData }) });
-    const result = await response.json();
-    if (!response.ok) { setToast(result.error || "Could not save the request"); return; }
-    setStoredRequests((current) => [result.request, ...current]);
-    notify(`Request #IS-${String(1000 + Number(result.request.id || 0))} created${result.request.assignedTo ? " and assigned to a representative" : " and queued"}.`);
+    await createServiceRequest({ requestType: String(form.get("requestType") || ""), details: String(form.get("details") || ""), requestData: requestData as Record<string, string | boolean | null> });
   };
 
   const navigate = (key: NavKey) => {
@@ -721,7 +881,7 @@ export default function HomePage() {
       <main className="main-content">
         <header className="topbar">
           <button className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open menu"><Menu /></button>
-          <div className="welcome"><p className="mobile-brand">InsurSuite</p><h1>{active === "Dashboard" ? `Welcome back, ${String(storedProfile?.profile?.preferredName || storedProfile?.fullName || "there")} 👋` : active}</h1><p>{active === "Dashboard" ? "Here’s what’s happening with your coverage today." : "Manage every detail of your coverage in one place."}</p></div>
+          <div className="welcome"><p className="mobile-brand">InsurSuite</p><h1>{active === "Dashboard" ? `Welcome back, ${String(storedProfile?.profile?.preferredName || storedProfile?.fullName || "there")}` : active}</h1><p>{active === "Dashboard" ? "Here’s what needs attention across your coverage file." : "Manage every detail of your coverage in one place."}</p></div>
           <div className="header-tools">
             <div className="global-search"><Search size={18} /><input value={search} onFocus={() => setSearchOpen(true)} onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }} placeholder="Search anything..." aria-label="Search InsurSuite" />{search && <button onClick={() => setSearch("")} aria-label="Clear search"><X size={15} /></button>}</div>
             <button className="icon-button notification-button" onClick={() => navigate("Notifications")} aria-label="Notifications"><Bell size={22} /><span>3</span></button>
@@ -730,7 +890,7 @@ export default function HomePage() {
           {searchOpen && (search || results.length > 0) && <div className="search-results"><div className="search-label">Search results</div>{results.length ? results.map((result) => <button key={result.title + result.detail} onClick={() => { setSearchOpen(false); setSearch(""); if (result.type === "nav") navigate(result.value as NavKey); else setSelectedPolicy(result.value as Policy); }}><Search size={16} /><span><strong>{result.title}</strong><small>{result.detail}</small></span><ArrowRight size={15} /></button>) : <p>No matching policies or sections.</p>}</div>}
         </header>
 
-        <SectionContent active={active} onNavigate={navigate} onPolicy={setSelectedPolicy} onOpen={openModal} notify={notify} policyData={allPolicies} uploadedDocuments={storedDocuments} profile={storedProfile} isSample={isSampleMode} requests={storedRequests} />
+        <SectionContent active={active} onNavigate={navigate} onPolicy={setSelectedPolicy} onOpen={openModal} notify={notify} policyData={allPolicies} uploadedDocuments={storedDocuments} profile={storedProfile} isSample={isSampleMode} requests={storedRequests} onCreateRequest={createServiceRequest} onSaveProfile={saveProfilePatch} />
       </main>
 
       {selectedPolicy && <Modal title={selectedPolicy.type} onClose={() => setSelectedPolicy(null)}><div className="policy-detail-hero"><span className={`policy-icon ${selectedPolicy.color}`}><selectedPolicy.icon size={24} /></span><div><strong>{selectedPolicy.carrier}</strong><small>Policy #{selectedPolicy.id} · Active</small></div><span className="status active"><Check size={13} />Active</span></div><div className="detail-grid"><div><small>Death Benefit</small><strong>{selectedPolicy.benefit}</strong></div><div><small>Monthly Premium</small><strong>{selectedPolicy.premium}</strong></div><div><small>Beneficiaries</small><strong>2 on file</strong></div><div><small>Next Review</small><strong>Aug 22, 2026</strong></div></div><div className="modal-actions"><button className="secondary-button" onClick={() => { setSelectedPolicy(null); navigate("Document Vault"); }}><FileText size={17} />View Documents</button><button className="primary-button" onClick={() => { setSelectedPolicy(null); setModal("beneficiary"); }}><PenLine size={17} />Manage Policy</button></div></Modal>}
@@ -744,7 +904,7 @@ export default function HomePage() {
       {modal === "ticket" && <Modal title="Create a service request" onClose={() => setModal(null)}><TicketRequestForm policies={allPolicies} onSubmit={submitServiceRequest} /></Modal>}
       {modal === "beneficiary" && <Modal title="Review beneficiaries" onClose={() => setModal(null)}><div className="beneficiary-list"><div><span className="avatar soft">AS</span><span><strong>Alex Smith</strong><small>Primary beneficiary · 70%</small></span><button>Edit</button></div><div><span className="avatar soft">TS</span><span><strong>Taylor Smith</strong><small>Primary beneficiary · 30%</small></span><button>Edit</button></div></div><button className="primary-button full" onClick={() => notify("Beneficiary review marked complete.")}><CheckCircle2 size={17} />Confirm Details Are Current</button></Modal>}
       {modal === "review" && <Modal title="Schedule your annual review" onClose={() => setModal(null)}><p className="modal-copy">Choose a 30-minute time with your dedicated coverage consultant.</p><div className="date-options">{["Tue, Jul 28 · 10:30 AM", "Wed, Jul 29 · 2:00 PM", "Fri, Jul 31 · 11:00 AM"].map((date) => <button key={date} onClick={() => notify(`Annual review scheduled for ${date}.`)}><CalendarDays size={18} /><span>{date}</span><ChevronRight size={17} /></button>)}</div></Modal>}
-      {modal === "concierge" && <Modal title="Message your consultant" onClose={() => setModal(null)}><div className="consultant"><span className="avatar">MC</span><span><strong>Maya Carter</strong><small>Your dedicated coverage consultant · Usually replies in 15 min</small></span><i /></div><form className="modal-form" onSubmit={(e) => { e.preventDefault(); notify("Message sent to Maya."); }}><label>Message<textarea required placeholder="Hi Maya, I have a question about..." /></label><button className="primary-button" type="submit"><Send size={17} />Send Message</button></form></Modal>}
+      {modal === "concierge" && <Modal title="Message your consultant" onClose={() => setModal(null)}><ConciergeChat /></Modal>}
       {modal === "upgrade" && <Modal title="Unlock InsurSuite Premium" onClose={() => setModal(null)}><div className="upgrade-box"><Gem size={34} /><h3>More guidance, whenever you need it</h3><ul><li><Check size={16} />Unlimited AI assistant conversations</li><li><Check size={16} />Priority concierge support</li><li><Check size={16} />Advanced policy comparisons</li></ul><button className="primary-button full" onClick={() => notify("You’ve joined the Premium waitlist.")}>Join the Premium Waitlist</button></div></Modal>}
 
       {toast && <div className="toast"><CheckCircle2 size={19} /><span>{toast}</span><button onClick={() => setToast(null)}><X size={15} /></button></div>}

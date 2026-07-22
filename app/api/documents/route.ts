@@ -2,6 +2,18 @@ import { getDb } from "../../../db";
 import { documents } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
 
+export function publicDocument(document: typeof documents.$inferSelect) {
+  return {
+    id: document.id,
+    fileName: document.fileName,
+    contentType: document.contentType,
+    fileSize: document.fileSize,
+    policyNumber: document.policyNumber,
+    processingStatus: document.processingStatus,
+    createdAt: document.createdAt,
+  };
+}
+
 export async function POST(request: Request) {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
@@ -19,5 +31,5 @@ export async function POST(request: Request) {
   await env.BUCKET.put(storageKey, file.stream(), { httpMetadata: { contentType: file.type || "application/octet-stream" } });
   const db = await getDb();
   const [document] = await db.insert(documents).values({ userEmail: user.email, storageKey, fileName: file.name.slice(0, 240), contentType: file.type, fileSize: file.size, policyNumber: policyNumber.trim().slice(0, 40), processingStatus: "processed" }).returning();
-  return Response.json({ document: { id: document.id, fileName: document.fileName, contentType: document.contentType, fileSize: document.fileSize, policyNumber: document.policyNumber, processingStatus: document.processingStatus, createdAt: document.createdAt } }, { status: 201 });
+  return Response.json({ document: publicDocument(document) }, { status: 201 });
 }

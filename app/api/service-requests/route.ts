@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { agentNotifications, serviceRequests } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { initialRequestStatus, priorityForUrgency, sanitizeServiceRequestData } from "../../service-request-model";
 import { chooseAgent } from "../../service-routing";
 
 export async function GET() {
@@ -19,12 +20,11 @@ export async function POST(request: Request) {
   if (!body.requestType?.trim()) return Response.json({ error: "Request type is required" }, { status: 400 });
   const requestType = body.requestType.trim().slice(0, 120);
   const details = (body.details || "").trim().slice(0, 4000);
-  const allowedFields = new Set(["policyNumber", "urgency", "contactMethod", "bestContactTime", "desiredOutcome", "effectiveDate", "amountInQuestion", "carrierContacted", "documentsAvailable", "authorization"]);
-  const requestData = Object.fromEntries(Object.entries(body.requestData || {}).filter(([key, value]) => allowedFields.has(key) && (typeof value === "string" || typeof value === "boolean")).map(([key, value]) => [key, typeof value === "string" ? value.trim().slice(0, 500) : value]));
+  const requestData = sanitizeServiceRequestData(body.requestData);
   const assignedTo = await chooseAgent(user.email);
   const db = await getDb();
-  const priority = requestData.urgency === "Urgent - coverage or payment at risk" ? "urgent" : "normal";
-  const [saved] = await db.insert(serviceRequests).values({ userEmail: user.email, requestType, details, requestDataJson: JSON.stringify(requestData), status: assignedTo ? "assigned" : "new", assignedTo, source: "client", priority, unreadByAgent: true }).returning();
+  const priority = priorityForUrgency(requestData.urgency);
+  const [saved] = await db.insert(serviceRequests).values({ userEmail: user.email, requestType, details, requestDataJson: JSON.stringify(requestData), status: initialRequestStatus(assignedTo), assignedTo, source: "client", priority, unreadByAgent: true }).returning();
   if (assignedTo) await db.insert(agentNotifications).values({ agentEmail: assignedTo, clientEmail: user.email, serviceRequestId: saved.id, title: `New ${requestType} request`, message: details.slice(0, 500) });
   return Response.json({ request: saved }, { status: 201 });
 }

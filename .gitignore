@@ -27,6 +27,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dev-server*.log
+work-dev-server*.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -41,4 +42,11 @@ next-env.d.ts
 /.wrangler/
 /.sites-runtime/
 /outputs/
+/output/
+/.playwright-cli/
 /work/
+
+# generated handoff/source snapshots
+CODEX_FULL_SOURCE.md
+FILE_LIST.txt
+HANDOFF_MANIFEST.md
