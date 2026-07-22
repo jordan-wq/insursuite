@@ -9,7 +9,7 @@ const nav = `
       <a href="/story/">Story</a>
       <a href="/mission/">Mission</a>
       <a href="/manifesto/">Manifesto</a>
-      <a class="nav-cta" href="/landing/">Enter site</a>
+      <a class="nav-cta" href="/login/">Enter site</a>
     </div>
   </nav>
 `;
@@ -43,6 +43,7 @@ const pages = {
   "story/index.html": story(),
   "mission/index.html": mission(),
   "manifesto/index.html": manifesto(),
+  "login/index.html": login(),
 };
 
 await rm(outDir, { recursive: true, force: true });
@@ -102,6 +103,25 @@ function manifesto() {
   return layout("Manifesto | InsurSuite", `
     <section class="page-hero"><span class="kicker">Manifesto</span><h1>Coverage is a promise. The system around it should act like one.</h1></section>
     <section class="split"><div><h2>What we believe.</h2><p>InsurSuite is built around a simple idea: people deserve a calmer way to manage the policies that protect their lives.</p></div><div class="manifesto">${lines.map((line, index) => `<article><span>${String(index + 1).padStart(2, "0")}</span><p>${line}</p></article>`).join("")}</div></section>${footer()}`);
+}
+
+function login() {
+  return layout("Login | InsurSuite", `
+    <section class="hero">
+      <div>
+        <span class="kicker">Secure portal access</span>
+        <h1>Enter your InsurSuite coverage portal.</h1>
+        <p>Sign in to organize policies, upload documents, review beneficiaries, ask for support, and keep your family coverage file ready.</p>
+        <div class="actions"><a class="button primary" href="/signin-with-chatgpt?return_to=%2F">Continue to secure login</a><a class="button secondary" href="/">Back to website</a></div>
+      </div>
+      <figure class="photo-card">
+        <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=82" alt="Insurance documents and planning notes on a desk">
+        <figcaption class="photo-caption"><strong>Your insurance information belongs in one protected place.</strong><small>Use the portal for policies, documents, beneficiaries, requests, and annual checkups.</small></figcaption>
+      </figure>
+    </section>
+    <section class="promise-strip"><span>Secure identity step.</span><span>Protected coverage file.</span><span>Guided support when you need it.</span></section>
+    <section class="footer-cta"><h2>New to InsurSuite?</h2><p>Create your portal through the secure login flow and start with the policies and documents you already have.</p><a class="button primary" href="/signin-with-chatgpt?return_to=%2F">Create account or sign in</a></section>
+  `);
 }
 
 function footer() {

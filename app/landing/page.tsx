@@ -24,7 +24,7 @@ export default function LandingPage() {
           <a href="#mission">Mission</a>
           <a href="#manifesto">Manifesto</a>
           <a href="#platform">Platform</a>
-          <Link className="nav-cta" href="/">Open portal</Link>
+          <Link className="nav-cta" href="/login">Enter site</Link>
         </div>
       </nav>
 
@@ -34,7 +34,7 @@ export default function LandingPage() {
           <h1>Keep your family’s insurance organized before anyone needs it.</h1>
           <p>InsurSuite gives you one secure place for policies, documents, beneficiaries, support requests, and annual coverage checkups.</p>
           <div className="hero-actions">
-            <Link className="primary-button" href="/">Open the portal<ArrowRight size={17} /></Link>
+            <Link className="primary-button" href="/login">Enter site<ArrowRight size={17} /></Link>
             <a className="secondary-button" href="#mission">Read the mission</a>
           </div>
           <div className="trust-strip">
@@ -112,7 +112,7 @@ export default function LandingPage() {
       <section className="closing-cta">
         <h2>Build a coverage file your future self can actually use.</h2>
         <p>Start with your account, add the policies you already own, and let InsurSuite turn the paper trail into a working system.</p>
-        <Link className="primary-button" href="/">Open the portal<ArrowRight size={17} /></Link>
+        <Link className="primary-button" href="/login">Enter site<ArrowRight size={17} /></Link>
       </section>
     </main>
   );
