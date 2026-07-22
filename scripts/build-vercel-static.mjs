@@ -44,6 +44,7 @@ const pages = {
   "mission/index.html": mission(),
   "manifesto/index.html": manifesto(),
   "login/index.html": login(),
+  "signin-with-chatgpt/index.html": signIn(),
 };
 
 await rm(outDir, { recursive: true, force: true });
@@ -112,7 +113,7 @@ function login() {
         <span class="kicker">Secure portal access</span>
         <h1>Enter your InsurSuite coverage portal.</h1>
         <p>Sign in to organize policies, upload documents, review beneficiaries, ask for support, and keep your family coverage file ready.</p>
-        <div class="actions"><a class="button primary" href="/signin-with-chatgpt?return_to=%2F">Continue to secure login</a><a class="button secondary" href="/">Back to website</a></div>
+        <div class="actions"><a class="button primary" href="/signin-with-chatgpt/?return_to=%2F">Continue to secure login</a><a class="button secondary" href="/">Back to website</a></div>
       </div>
       <figure class="photo-card">
         <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=82" alt="Insurance documents and planning notes on a desk">
@@ -120,7 +121,25 @@ function login() {
       </figure>
     </section>
     <section class="promise-strip"><span>Secure identity step.</span><span>Protected coverage file.</span><span>Guided support when you need it.</span></section>
-    <section class="footer-cta"><h2>New to InsurSuite?</h2><p>Create your portal through the secure login flow and start with the policies and documents you already have.</p><a class="button primary" href="/signin-with-chatgpt?return_to=%2F">Create account or sign in</a></section>
+    <section class="footer-cta"><h2>New to InsurSuite?</h2><p>Create your portal through the secure login flow and start with the policies and documents you already have.</p><a class="button primary" href="/signin-with-chatgpt/?return_to=%2F">Create account or sign in</a></section>
+  `);
+}
+
+function signIn() {
+  return layout("Secure Sign In | InsurSuite", `
+    <section class="hero">
+      <div>
+        <span class="kicker">Portal sign-in</span>
+        <h1>Your secure portal login is the next connection point.</h1>
+        <p>The public InsurSuite website is live as a static Vercel site. The protected client portal needs the authenticated app backend connected before live accounts can open here.</p>
+        <div class="actions"><a class="button primary" href="/login/">Back to login page</a><a class="button secondary" href="/">Return to website</a></div>
+      </div>
+      <figure class="photo-card">
+        <img src="https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=1200&q=82" alt="A secure planning folder on a desk">
+        <figcaption class="photo-caption"><strong>No dead ends for visitors.</strong><small>This route is wired so Vercel serves a clear handoff page while portal authentication is connected.</small></figcaption>
+      </figure>
+    </section>
+    <section class="band"><h2>What still needs to be connected?</h2><p>To make this button open real accounts in production, deploy the authenticated portal backend and point this sign-in route to that live portal URL.</p></section>
   `);
 }
 
