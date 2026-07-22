@@ -4,10 +4,12 @@ import { clientProfiles, documents, serviceRequests, userPolicies } from "../../
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { sanitizeProfile } from "../../profile-fields";
 import { isAgent } from "../../service-routing";
+import { isVercelDemoStore, vercelPortalData, vercelSaveProfile } from "../../vercel-demo-store";
 
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
+  if (isVercelDemoStore()) return vercelPortalData(user);
   const db = await getDb();
   const [profile] = await db.select().from(clientProfiles).where(eq(clientProfiles.userEmail, user.email)).limit(1);
   const policies = await db.select().from(userPolicies).where(eq(userPolicies.userEmail, user.email));
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
   const body = await request.json() as { fullName?: string; phone?: string; dateOfBirth?: string; onboardingStatus?: string; onboardingStep?: number; profile?: Record<string, unknown> };
+  if (isVercelDemoStore()) return vercelSaveProfile(user, body);
   const cleanProfile = sanitizeProfile(body.profile);
   const fullName = (body.fullName?.trim() || user.fullName || user.displayName).slice(0, 120);
   const status = ["in_progress", "completed"].includes(body.onboardingStatus || "") ? body.onboardingStatus! : "in_progress";

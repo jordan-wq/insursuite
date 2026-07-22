@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { userPolicies } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { isVercelDemoStore, vercelListPolicies, vercelSavePolicy } from "../../vercel-demo-store";
 
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
+  if (isVercelDemoStore()) return vercelListPolicies(user);
   const db = await getDb();
   return Response.json({ policies: await db.select().from(userPolicies).where(eq(userPolicies.userEmail, user.email)) });
 }
@@ -14,6 +16,7 @@ export async function POST(request: Request) {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
   const body = await request.json() as Record<string, string>;
+  if (isVercelDemoStore()) return vercelSavePolicy(user, body);
   const clean = (value: string | undefined, max = 160) => (value || "").trim().slice(0, max);
   const policyNumber = clean(body.policyNumber, 40);
   if (!policyNumber) return Response.json({ error: "Policy number is required" }, { status: 400 });

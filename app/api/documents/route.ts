@@ -1,6 +1,7 @@
 import { getDb } from "../../../db";
 import { documents } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { isVercelDemoStore, vercelSaveDocument } from "../../vercel-demo-store";
 
 export function publicDocument(document: typeof documents.$inferSelect) {
   return {
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
   const form = await request.formData();
+  if (isVercelDemoStore()) return vercelSaveDocument(user, form);
   const file = form.get("file");
   const policyNumber = String(form.get("policyNumber") || "");
   if (!(file instanceof File)) return Response.json({ error: "File is required" }, { status: 400 });

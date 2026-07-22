@@ -440,11 +440,13 @@ function PoliciesView({ onPolicy, onOpen, notify, policyData, isSample }: { onPo
   </div>;
 }
 
+type DocumentRow = { id?: number; name: string; policy: string; type: string; date: string; size: string; contentType?: string; previewUrl?: string };
+
 function DocumentVaultView({ onOpen, notify, uploadedDocuments }: { onOpen: (modal: string) => void; notify: (message: string) => void; uploadedDocuments: PortalDocument[] }) {
   const [query, setQuery] = useState("");
   const [previewDocument, setPreviewDocument] = useState<{ id?: number; name: string; contentType?: string; previewUrl?: string } | null>(null);
-  const persistentDocuments = uploadedDocuments.map((doc) => ({ id: doc.id, name: doc.fileName, policy: doc.policyNumber ? `Policy #${doc.policyNumber}` : "Unassigned policy", type: doc.contentType === "text/plain" ? "Text policy file" : doc.contentType.startsWith("image/") ? "Policy image" : "AI-scanned policy", date: new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), size: doc.fileSize > 1048576 ? `${(doc.fileSize / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(doc.fileSize / 1024))} KB`, contentType: doc.contentType, previewUrl: `/api/documents/${doc.id}` }));
-  const sampleDocuments = [{ name: "Sample_Whole_Life_Policy.pdf", policy: "Sample policy", type: "Policy contract", date: "Example", size: "2.4 MB" }, { name: "Sample_Annual_Statement.pdf", policy: "Sample policy", type: "Annual statement", date: "Example", size: "1.8 MB" }];
+  const persistentDocuments: DocumentRow[] = uploadedDocuments.map((doc) => ({ id: doc.id, name: doc.fileName, policy: doc.policyNumber ? `Policy #${doc.policyNumber}` : "Unassigned policy", type: doc.contentType === "text/plain" ? "Text policy file" : doc.contentType.startsWith("image/") ? "Policy image" : "AI-scanned policy", date: new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), size: doc.fileSize > 1048576 ? `${(doc.fileSize / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(doc.fileSize / 1024))} KB`, contentType: doc.contentType, previewUrl: `/api/documents/${doc.id}` }));
+  const sampleDocuments: DocumentRow[] = [{ name: "Sample_Whole_Life_Policy.pdf", policy: "Sample policy", type: "Policy contract", date: "Example", size: "2.4 MB" }, { name: "Sample_Annual_Statement.pdf", policy: "Sample policy", type: "Annual statement", date: "Example", size: "1.8 MB" }];
   const isSample = persistentDocuments.length === 0;
   const documents = (isSample ? sampleDocuments : persistentDocuments).filter((doc) => `${doc.name} ${doc.policy} ${doc.type}`.toLowerCase().includes(query.toLowerCase()));
   const download = (doc: typeof documents[number]) => {
@@ -610,9 +612,10 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 }
 
 function ConciergeChat() {
+  type ConciergeMessage = { role: "consultant" | "user"; text: string; time: string };
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<ConciergeMessage[]>([
     { role: "consultant" as const, text: "Hi, I’m Maya. I can help with policy questions, billing, beneficiaries, claims, or getting a request routed to the right person.", time: "Just now" },
     { role: "consultant" as const, text: "What would you like help with today?", time: "Just now" },
   ]);

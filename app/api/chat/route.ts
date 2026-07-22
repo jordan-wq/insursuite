@@ -3,12 +3,14 @@ import { getDb } from "../../../db";
 import { agentNotifications, chatMessages, knowledgeEntries, serviceRequests, userPolicies } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { chooseAgent } from "../../service-routing";
+import { isVercelDemoStore, vercelChatHistory, vercelChatReply } from "../../vercel-demo-store";
 
 const tokenize = (text: string) => new Set(text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((word) => word.length > 2));
 
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
+  if (isVercelDemoStore()) return vercelChatHistory(user);
   const db = await getDb();
   const messages = await db.select().from(chatMessages).where(eq(chatMessages.userEmail, user.email)).orderBy(desc(chatMessages.createdAt)).limit(30);
   return Response.json({ messages: messages.reverse() });
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
   const body = await request.json() as { message?: string };
   const message = (body.message || "").trim().slice(0, 4000);
   if (!message) return Response.json({ error: "Message is required" }, { status: 400 });
+  if (isVercelDemoStore()) return vercelChatReply(user, message);
   const db = await getDb();
   await db.insert(chatMessages).values({ userEmail: user.email, role: "user", message });
   const entries = await db.select().from(knowledgeEntries).where(eq(knowledgeEntries.active, true));
