@@ -1,37 +1,47 @@
-import { getDb } from "../../../db";
-import { documents } from "../../../db/schema";
-import { getChatGPTUser } from "../../chatgpt-auth";
-import { isVercelDemoStore, vercelSaveDocument } from "../../vercel-demo-store";
+import { createServerSupabase } from "../../lib/supabase/server";
+import { getCurrentUser } from "../../auth";
 
-export function publicDocument(document: typeof documents.$inferSelect) {
-  return {
-    id: document.id,
-    fileName: document.fileName,
-    contentType: document.contentType,
-    fileSize: document.fileSize,
-    policyNumber: document.policyNumber,
-    processingStatus: document.processingStatus,
-    createdAt: document.createdAt,
-  };
-}
+const DOCUMENT_SELECT = "id, fileName:file_name, contentType:content_type, fileSize:file_size, policyNumber:policy_number, processingStatus:processing_status, createdAt:created_at";
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Sign in required" }, { status: 401 });
+
   const form = await request.formData();
-  if (isVercelDemoStore()) return vercelSaveDocument(user, form);
   const file = form.get("file");
   const policyNumber = String(form.get("policyNumber") || "");
   if (!(file instanceof File)) return Response.json({ error: "File is required" }, { status: 400 });
   if (file.size > 20 * 1024 * 1024) return Response.json({ error: "File must be 20 MB or smaller" }, { status: 400 });
   const allowedTypes = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain"]);
   if (!allowedTypes.has(file.type)) return Response.json({ error: "Only PDF, PNG, JPG, and text policy documents are supported" }, { status: 415 });
-  const { env } = await import("cloudflare:workers");
-  if (!env.BUCKET) return Response.json({ error: "Document storage is unavailable" }, { status: 503 });
+
+  const supabase = await createServerSupabase();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storageKey = `${encodeURIComponent(user.email)}/${crypto.randomUUID()}-${safeName}`;
-  await env.BUCKET.put(storageKey, file.stream(), { httpMetadata: { contentType: file.type || "application/octet-stream" } });
-  const db = await getDb();
-  const [document] = await db.insert(documents).values({ userEmail: user.email, storageKey, fileName: file.name.slice(0, 240), contentType: file.type, fileSize: file.size, policyNumber: policyNumber.trim().slice(0, 40), processingStatus: "processed" }).returning();
-  return Response.json({ document: publicDocument(document) }, { status: 201 });
+  const storageKey = `${user.id}/${crypto.randomUUID()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage.from("documents").upload(storageKey, file, {
+    contentType: file.type || "application/octet-stream",
+  });
+  if (uploadError) return Response.json({ error: "Document storage is unavailable" }, { status: 503 });
+
+  const { data: document, error } = await supabase
+    .from("documents")
+    .insert({
+      user_id: user.id,
+      storage_key: storageKey,
+      file_name: file.name.slice(0, 240),
+      content_type: file.type,
+      file_size: file.size,
+      policy_number: policyNumber.trim().slice(0, 40),
+      processing_status: "processed",
+    })
+    .select(DOCUMENT_SELECT)
+    .single();
+
+  if (error) {
+    await supabase.storage.from("documents").remove([storageKey]);
+    return Response.json({ error: "Unable to save document" }, { status: 500 });
+  }
+
+  return Response.json({ document }, { status: 201 });
 }

@@ -1,10 +1,5 @@
 export async function getAgentEmails() {
-  if (process.env.INSURSUITE_USE_CLOUDFLARE !== "true") {
-    return String(process.env.AGENT_EMAILS || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-  }
-
-  const { env } = await import("cloudflare:workers");
-  return String(env.AGENT_EMAILS || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  return String(process.env.AGENT_EMAILS || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
 }
 
 export async function isAgent(email: string) {

@@ -1,30 +1,48 @@
-import { and, desc, eq } from "drizzle-orm";
-import { getDb } from "../../../../db";
-import { agentNotifications, clientProfiles, serviceRequests } from "../../../../db/schema";
-import { getChatGPTUser } from "../../../chatgpt-auth";
+import { createAdminSupabase } from "../../../lib/supabase/admin";
+import { getCurrentUser } from "../../../auth";
 import { isAgentEditableRequestStatus } from "../../../service-request-model";
 import { isAgent } from "../../../service-routing";
-import { isVercelDemoStore, vercelAgentQueue, vercelUpdateAgentRequest } from "../../../vercel-demo-store";
+
+const REQUEST_SELECT = "id, userId:user_id, requestType:request_type, details, requestData:request_data, status, assignedTo:assigned_to, source, priority, unreadByAgent:unread_by_agent, createdAt:created_at, updatedAt:updated_at";
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
-  if (isVercelDemoStore()) return vercelAgentQueue(user);
-  const db = await getDb();
-  const requests = await db.select().from(serviceRequests).where(eq(serviceRequests.assignedTo, user.email.toLowerCase())).orderBy(desc(serviceRequests.createdAt));
-  const notifications = await db.select().from(agentNotifications).where(eq(agentNotifications.agentEmail, user.email.toLowerCase())).orderBy(desc(agentNotifications.createdAt)).limit(30);
-  const clients = await db.select().from(clientProfiles);
-  return Response.json({ requests: requests.map((item) => ({ ...item, requestData: JSON.parse(item.requestDataJson || "{}"), clientName: clients.find((client) => client.userEmail === item.userEmail)?.fullName || item.userEmail })), notifications });
+
+  const admin = createAdminSupabase();
+  const email = user.email.toLowerCase();
+  const [{ data: requests }, { data: notifications }] = await Promise.all([
+    admin.from("service_requests").select(REQUEST_SELECT).eq("assigned_to", email).order("created_at", { ascending: false }),
+    admin.from("agent_notifications").select("id, agentEmail:agent_email, clientEmail:client_email, serviceRequestId:service_request_id, title, message, read, createdAt:created_at").eq("agent_email", email).order("created_at", { ascending: false }).limit(30),
+  ]);
+
+  const clientIds = [...new Set((requests || []).map((item) => item.userId))];
+  const { data: clients } = clientIds.length
+    ? await admin.from("client_profiles").select("userId:user_id, fullName:full_name").in("user_id", clientIds)
+    : { data: [] as { userId: string; fullName: string }[] };
+
+  return Response.json({
+    requests: (requests || []).map((item) => ({ ...item, clientName: clients?.find((client) => client.userId === item.userId)?.fullName || item.userId })),
+    notifications: notifications || [],
+  });
 }
 
 export async function PATCH(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getCurrentUser();
   if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
+
   const body = await request.json() as { id?: number; status?: string };
   if (!body.id || !isAgentEditableRequestStatus(body.status)) return Response.json({ error: "Valid request and status required" }, { status: 400 });
-  if (isVercelDemoStore()) return vercelUpdateAgentRequest(user, body);
-  const db = await getDb();
-  const [saved] = await db.update(serviceRequests).set({ status: body.status, unreadByAgent: false, updatedAt: new Date().toISOString() }).where(and(eq(serviceRequests.id, body.id), eq(serviceRequests.assignedTo, user.email.toLowerCase()))).returning();
-  if (!saved) return Response.json({ error: "Request not found in your assigned queue" }, { status: 404 });
+
+  const admin = createAdminSupabase();
+  const { data: saved, error } = await admin
+    .from("service_requests")
+    .update({ status: body.status, unread_by_agent: false, updated_at: new Date().toISOString() })
+    .eq("id", body.id)
+    .eq("assigned_to", user.email.toLowerCase())
+    .select(REQUEST_SELECT)
+    .single();
+
+  if (error || !saved) return Response.json({ error: "Request not found in your assigned queue" }, { status: 404 });
   return Response.json({ request: saved });
 }

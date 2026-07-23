@@ -1,1 +1,0 @@
-ALTER TABLE `service_requests` ADD `request_data_json` text DEFAULT '{}' NOT NULL;

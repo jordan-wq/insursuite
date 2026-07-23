@@ -2,35 +2,31 @@
 
 ## Product
 
-InsurSuite is an authenticated insurance client portal built with React, Next.js-compatible Vinext, Cloudflare D1, and R2. It includes onboarding, document extraction, policy organization, a trained-answer chatbot, human escalation, structured service requests, and an agent console.
+InsurSuite is an authenticated insurance client portal built with React and Next.js, deployed on Vercel, backed by Supabase (Auth, Postgres, Storage). It includes onboarding, document extraction, policy organization, a trained-answer chatbot, human escalation, structured service requests, and an agent console.
 
 ## Commands
 
-- Install: `npm run install:ci`
+- Install: `npm install`
 - Lint: `npm run lint`
 - Build: `npm run build`
 - Test: `npm test`
-- Generate migrations after editing `db/schema.ts`: `npm run db:generate`
-
-Run lint and build before handing off a change. Never edit generated migration history manually unless repairing a verified migration problem.
+- Push schema changes: edit `supabase/migrations/`, then `npx supabase db push`
 
 ## Architecture
 
 - `app/page.tsx`: client portal UI and workflows
-- `app/api/`: authenticated API routes
-- `app/chatgpt-auth.ts`: Sign in with ChatGPT identity helpers
-- `app/service-routing.ts`: agent authorization and assignment
-- `db/schema.ts`: D1 schema
-- `drizzle/`: ordered database migrations
-- `.openai/hosting.json`: Sites project plus logical D1/R2 bindings
-- R2 binding `BUCKET`: uploaded client documents
-- D1 binding `DB`: profiles, policies, tickets, chatbot knowledge, and messages
+- `app/api/`: authenticated API routes, all backed by Supabase
+- `app/auth.ts`: Supabase session helpers (`getCurrentUser`, `requireCurrentUser`)
+- `app/service-routing.ts`: agent authorization (`AGENT_EMAILS` allowlist) and assignment
+- `app/lib/supabase/{client,server,admin,config}.ts`: browser, server (session-scoped, RLS-enforced), and admin (service-role, RLS-bypassing) Supabase clients
+- `supabase/migrations/`: ordered schema and RLS/storage policy migrations
+- Supabase Storage bucket `documents`: uploaded client documents, private, per-user folder policies
 
 ## Security and data rules
 
 - Treat insurance, household, beneficiary, and financial information as sensitive.
-- Enforce authentication and ownership on every server-side read or write.
-- Never trust email, user ID, assignment, role, or ownership sent by the browser.
+- Client-owned tables (profiles, policies, documents, service requests, chat) are protected by Row Level Security keyed on `auth.uid()` — never bypass this with the admin client except for gated agent-console reads/writes.
+- The admin (service-role) client must only be used after an explicit `isAgent(user.email)` check. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
 - Keep server-side allowlists and length limits on all intake fields.
 - Do not log document contents, policy data, personal data, credentials, or secrets.
 - Never commit `.env` files, API keys, production credentials, client documents, database exports, or storage-bucket contents.
@@ -52,4 +48,3 @@ Run lint and build before handing off a change. Never edit generated migration h
 - Update schema, migrations, APIs, UI, and agent views together when adding a collected field.
 - Every collected field must have a defined downstream use or be removed.
 - Maintain visible sample/live labels and never silently combine sample records with client records.
-
