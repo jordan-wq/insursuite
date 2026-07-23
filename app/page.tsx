@@ -111,13 +111,10 @@ const navItems: { label: NavKey; icon: LucideIcon; badge?: number }[] = [
   { label: "Dashboard", icon: Home },
   { label: "My Policies", icon: WalletCards },
   { label: "Document Vault", icon: FileText },
-  { label: "AI Assistant", icon: Bot },
   { label: "Support Center", icon: Headphones },
   { label: "Call Intake", icon: ClipboardCheck },
-  { label: "Coverage Review", icon: ClipboardCheck },
   { label: "Notifications", icon: Bell, badge: 3 },
   { label: "Family & Household", icon: UsersRound },
-  { label: "Claims Concierge", icon: HeartHandshake },
   { label: "Agent Console", icon: Headphones },
   { label: "Settings", icon: Settings },
 ];
@@ -274,8 +271,6 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, documents, requests, isSample }: { onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; policyData: Policy[]; profile: StoredProfile | null; documents: PortalDocument[]; requests: ServiceRequest[]; isSample: boolean }) {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
   const metrics = portfolioMetrics(policyData, profile, documents);
   const review = coverageReviewModel(policyData, profile, documents);
   const topAction = review.nextActions[0];
@@ -294,18 +289,6 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
   const verifiedPolicies = policyData.filter((policy) => !policy.isSample).length;
   const policyDocumentCount = documents.filter((document) => document.policyNumber).length;
   const activeRequestCount = requests.filter((request) => request.status !== "resolved").length;
-
-  const ask = (text: string) => {
-    const next = text.trim();
-    if (!next) return;
-    setQuestion("");
-    const liveAnswers: Record<string, string> = {
-      "What happens if I pass away tomorrow?": `The policies saved in this portal show ${currency(metrics.benefit)} in total death benefits. Carrier approval and each policy's beneficiary designation control payment; confirm the original contracts before relying on this total.`,
-      "Do I have enough life insurance?": `Your portal readiness score is ${metrics.score}/100. This is an organization and completeness score—not a recommendation. A licensed professional should compare your saved goals, income range, debts, and dependents with your actual contracts.`,
-      "Are my beneficiaries up to date?": `${metrics.beneficiaryRate}% of saved policies have beneficiary information recorded. Review the carrier's official records because portal entries do not change a policy designation.`,
-    };
-    setAnswer(isSample ? (aiAnswers[next] ?? "This is a sample response. Upload a policy and complete onboarding for an account-specific answer.") : (liveAnswers[next] ?? "I can organize the facts saved in your portal, but a licensed consultant should confirm advice and carrier-specific terms."));
-  };
 
   return (
     <>
@@ -359,20 +342,6 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
           </div>
         </Panel>
 
-        <Panel className="assistant-panel">
-          <div className="panel-header"><h2>AI Insurance Assistant</h2><span className="pill purple">24/7</span></div>
-          <div className="assistant-intro"><p>Hi {String(profile?.profile?.preferredName || profile?.fullName || "there")}! I&apos;m here to help organize your saved insurance information.</p><Sparkles size={44} /></div>
-          <div className="prompt-list">
-            {aiPrompts.map((prompt) => <button key={prompt} onClick={() => ask(prompt)}><MessageCircle size={16} />{prompt}</button>)}
-          </div>
-          {answer && <div className="inline-answer"><Sparkles size={16} /><p>{answer}</p><button aria-label="Close answer" onClick={() => setAnswer("")}><X size={14} /></button></div>}
-          <form className="assistant-input" onSubmit={(e) => { e.preventDefault(); ask(question); }}>
-            <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask me anything about your insurance..." aria-label="Ask the AI insurance assistant" />
-            <button type="submit" aria-label="Send question"><Send size={19} /></button>
-          </form>
-          <small className="disclaimer">AI responses are for informational purposes only.</small>
-        </Panel>
-
         <Panel className="activity-panel">
           <PanelHeader title="Recent Activity" action="View All" onAction={() => onNavigate("Notifications")} />
           <div className="activity-list">
@@ -380,19 +349,6 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
               return <div className="activity-row" key={id}><span className={`activity-icon ${color}`}><ActivityIcon size={16} /></span><span><strong>{title}</strong><small>{detail}</small></span><time>{time}</time></div>;
             })}
           </div>
-        </Panel>
-
-        <Panel className="review-panel">
-          <PanelHeader title="Coverage Review" action="View Full Review" onAction={() => onNavigate("Coverage Review")} />
-          <div className="review-content">
-            <ScoreRing score={review.score} />
-            <div className="score-bars">
-              {review.reviewMetrics.map(({ icon: BarIcon, label, score, color }) => {
-                return <div className="score-row" key={label}><BarIcon size={14} /><span>{label}</span><i><b className={color} style={{ width: `${score}%` }} /></i><small>{score}/100</small></div>;
-              })}
-            </div>
-          </div>
-          <div className="tip-bar"><span><Zap size={17} /> Tip: {review.nextActions[0]?.title || "Your portal is in good shape."}</span><button onClick={() => onOpen(review.nextActions[0]?.modal || "review")}>{review.nextActions[0]?.action || "Review"}</button></div>
         </Panel>
 
         <Panel className="actions-panel">
