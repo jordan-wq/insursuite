@@ -55,10 +55,17 @@ function getLocalDevUser(): ChatGPTUser | null {
 async function getSupabasePortalUser(): Promise<ChatGPTUser | null> {
   if (!hasSupabaseConfig()) return null;
 
-  const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: {
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  } | null = null;
+  try {
+    const supabase = await createServerSupabase();
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    return null;
+  }
   if (!user?.email) return null;
 
   const fullName =
