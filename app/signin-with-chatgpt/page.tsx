@@ -18,5 +18,5 @@ export default async function SignInWithChatGPTPage({
   searchParams: Promise<{ return_to?: string | string[] }>;
 }) {
   const params = await searchParams;
-  redirect(safeReturnTo(params.return_to));
+  redirect(`/login?return_to=${encodeURIComponent(safeReturnTo(params.return_to))}`);
 }

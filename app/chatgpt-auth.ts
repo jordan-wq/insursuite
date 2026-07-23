@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { hasSupabaseConfig } from "./lib/supabase/config";
+import { createServerSupabase } from "./lib/supabase/server";
 
 export type ChatGPTUser = {
   displayName: string;
@@ -17,6 +19,9 @@ const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  const supabaseUser = await getSupabasePortalUser();
+  if (supabaseUser) return supabaseUser;
+
   const requestHeaders = await headers();
   const email = requestHeaders.get(USER_EMAIL_HEADER);
   if (!email) return getLocalDevUser();
@@ -47,6 +52,28 @@ function getLocalDevUser(): ChatGPTUser | null {
   };
 }
 
+async function getSupabasePortalUser(): Promise<ChatGPTUser | null> {
+  if (!hasSupabaseConfig()) return null;
+
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const fullName =
+    (typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name
+      : null) ||
+    (typeof user.user_metadata?.name === "string" ? user.user_metadata.name : null);
+
+  return {
+    displayName: fullName || user.email,
+    email: user.email,
+    fullName,
+  };
+}
+
 function isAuthRequired() {
   return process.env.INSURSUITE_REQUIRE_AUTH === "true";
 }
@@ -62,6 +89,9 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if (hasSupabaseConfig()) {
+    return `/login?return_to=${encodeURIComponent(safeReturnTo)}`;
+  }
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
