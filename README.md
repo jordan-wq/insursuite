@@ -20,7 +20,7 @@ Next.js app deployed on Vercel, backed by Supabase (Auth, Postgres, Storage).
 
 - `supabase/migrations/` — schema and Row Level Security policies for `client_profiles`, `user_policies`, `documents`, `service_requests`, `agent_notifications`, `knowledge_entries`, and `chat_messages`, plus the `documents` storage bucket. Apply with `npx supabase db push` after `npx supabase link --project-ref <ref>`.
 - Every client-owned table is keyed on `auth.uid()` and protected by RLS: a signed-in user can only read/write their own rows.
-- The agent console (`/api/agent/queue`, `/api/knowledge`) uses a server-only service-role client (`SUPABASE_SERVICE_ROLE_KEY`) to read and update across users, gated by the `AGENT_EMAILS` allowlist checked in `app/service-routing.ts` before any query runs.
+- The agent console (`/api/agent/queue`, `/api/knowledge`) uses a server-only service-role client (`SUPABASE_SERVICE_ROLE_KEY`) to read and update across users, gated by an `agent_roles` table lookup checked in `app/service-routing.ts` before any query runs. Grant staff access with `insert into public.agent_roles (user_id) values ('<their auth.users id>')` after they sign up.
 
 ## Commands
 

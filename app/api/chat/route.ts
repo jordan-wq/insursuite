@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   let answer = "";
   let resolution = "answered";
-  let serviceRequestId: number | null = null;
+  let serviceRequestId: string | null = null;
 
   if (ranked[0]?.score >= .34) {
     answer = ranked[0].entry.answer;
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       ? `I found ${count} saved ${count === 1 ? "policy" : "policies"}. I can explain recorded details, but carrier records control coverage and a licensed representative must confirm recommendations or changes.`
       : "I do not see a saved policy yet. Upload the policy document so I can organize its carrier, benefit, premium, beneficiaries, and cash value.";
   } else {
-    const assignedTo = await chooseAgent(user.email);
+    const assignedTo = await chooseAgent(user.id);
     const { data: ticket } = await supabase
       .from("service_requests")
       .insert({ user_id: user.id, request_type: "Chatbot escalation", details: message, status: assignedTo ? "assigned" : "new", assigned_to: assignedTo, source: "chatbot", priority: "normal", unread_by_agent: true })
@@ -61,12 +61,13 @@ export async function POST(request: Request) {
     serviceRequestId = ticket?.id ?? null;
     if (assignedTo && serviceRequestId) {
       const admin = createAdminSupabase();
-      await admin.from("agent_notifications").insert({ agent_email: assignedTo, client_email: user.email, service_request_id: serviceRequestId, title: "Chatbot needs human help", message: message.slice(0, 500) });
+      await admin.from("agent_notifications").insert({ agent_id: assignedTo, client_id: user.id, service_request_id: serviceRequestId, title: "Chatbot needs human help", message: message.slice(0, 500) });
     }
     resolution = "escalated";
+    const code = (serviceRequestId || "").replace(/-/g, "").slice(0, 6).toUpperCase() || "PENDING";
     answer = assignedTo
-      ? `I could not complete that reliably, so I created request IS-${1000 + (serviceRequestId || 0)} and assigned it to a customer service representative. They can see your question and will follow up here.`
-      : `I could not complete that reliably, so I created request IS-${1000 + (serviceRequestId || 0)}. It is waiting for a customer service representative.`;
+      ? `I could not complete that reliably, so I created request IS-${code} and assigned it to a customer service representative. They can see your question and will follow up here.`
+      : `I could not complete that reliably, so I created request IS-${code}. It is waiting for a customer service representative.`;
   }
 
   await supabase.from("chat_messages").insert({ user_id: user.id, role: "assistant", message: answer, resolution, service_request_id: serviceRequestId });

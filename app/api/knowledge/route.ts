@@ -6,7 +6,7 @@ const ENTRY_SELECT = "id, question, answer, keywords, active, createdBy:created_
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
+  if (!user || !(await isAgent(user.id))) return Response.json({ error: "Agent access required" }, { status: 403 });
 
   const admin = createAdminSupabase();
   const { data: entries } = await admin.from("knowledge_entries").select(ENTRY_SELECT).order("updated_at", { ascending: false });
@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
+  if (!user || !(await isAgent(user.id))) return Response.json({ error: "Agent access required" }, { status: 403 });
 
   const body = await request.json() as { question?: string; answer?: string; keywords?: string };
   const question = (body.question || "").trim().slice(0, 500);
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const admin = createAdminSupabase();
   const { data: entry, error } = await admin
     .from("knowledge_entries")
-    .insert({ question, answer, keywords, created_by: user.email })
+    .insert({ question, answer, keywords, created_by: user.id })
     .select(ENTRY_SELECT)
     .single();
 

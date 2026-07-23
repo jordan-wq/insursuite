@@ -51,3 +51,4 @@ next-env.d.ts
 CODEX_FULL_SOURCE.md
 FILE_LIST.txt
 HANDOFF_MANIFEST.md
+supabase/.temp/

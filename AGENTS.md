@@ -17,7 +17,7 @@ InsurSuite is an authenticated insurance client portal built with React and Next
 - `app/page.tsx`: client portal UI and workflows
 - `app/api/`: authenticated API routes, all backed by Supabase
 - `app/auth.ts`: Supabase session helpers (`getCurrentUser`, `requireCurrentUser`)
-- `app/service-routing.ts`: agent authorization (`AGENT_EMAILS` allowlist) and assignment
+- `app/service-routing.ts`: agent authorization (`agent_roles` table membership) and assignment
 - `app/lib/supabase/{client,server,admin,config}.ts`: browser, server (session-scoped, RLS-enforced), and admin (service-role, RLS-bypassing) Supabase clients
 - `supabase/migrations/`: ordered schema and RLS/storage policy migrations
 - Supabase Storage bucket `documents`: uploaded client documents, private, per-user folder policies

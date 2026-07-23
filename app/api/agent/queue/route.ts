@@ -7,13 +7,12 @@ const REQUEST_SELECT = "id, userId:user_id, requestType:request_type, details, r
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
+  if (!user || !(await isAgent(user.id))) return Response.json({ error: "Agent access required" }, { status: 403 });
 
   const admin = createAdminSupabase();
-  const email = user.email.toLowerCase();
   const [{ data: requests }, { data: notifications }] = await Promise.all([
-    admin.from("service_requests").select(REQUEST_SELECT).eq("assigned_to", email).order("created_at", { ascending: false }),
-    admin.from("agent_notifications").select("id, agentEmail:agent_email, clientEmail:client_email, serviceRequestId:service_request_id, title, message, read, createdAt:created_at").eq("agent_email", email).order("created_at", { ascending: false }).limit(30),
+    admin.from("service_requests").select(REQUEST_SELECT).eq("assigned_to", user.id).order("created_at", { ascending: false }),
+    admin.from("agent_notifications").select("id, agentId:agent_id, clientId:client_id, serviceRequestId:service_request_id, title, message, read, createdAt:created_at").eq("agent_id", user.id).order("created_at", { ascending: false }).limit(30),
   ]);
 
   const clientIds = [...new Set((requests || []).map((item) => item.userId))];
@@ -29,9 +28,9 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !(await isAgent(user.email))) return Response.json({ error: "Agent access required" }, { status: 403 });
+  if (!user || !(await isAgent(user.id))) return Response.json({ error: "Agent access required" }, { status: 403 });
 
-  const body = await request.json() as { id?: number; status?: string };
+  const body = await request.json() as { id?: string; status?: string };
   if (!body.id || !isAgentEditableRequestStatus(body.status)) return Response.json({ error: "Valid request and status required" }, { status: 400 });
 
   const admin = createAdminSupabase();
@@ -39,7 +38,7 @@ export async function PATCH(request: Request) {
     .from("service_requests")
     .update({ status: body.status, unread_by_agent: false, updated_at: new Date().toISOString() })
     .eq("id", body.id)
-    .eq("assigned_to", user.email.toLowerCase())
+    .eq("assigned_to", user.id)
     .select(REQUEST_SELECT)
     .single();
 

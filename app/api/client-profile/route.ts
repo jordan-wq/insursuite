@@ -2,6 +2,13 @@ import { createServerSupabase } from "../../lib/supabase/server";
 import { getCurrentUser } from "../../auth";
 import { sanitizeProfile } from "../../profile-fields";
 import { isAgent } from "../../service-routing";
+import { formatMoney } from "../../lib/money";
+
+const POLICY_SELECT = "id, policyNumber:policy_number, policyType:policy_type, carrier, insuredName:insured_name, ownerName:owner_name, deathBenefit:death_benefit, monthlyPremium:monthly_premium, effectiveDate:effective_date, beneficiaries, cashValue:cash_value, sourceFileName:source_file_name, createdAt:created_at, updatedAt:updated_at";
+
+function formatPolicy<T extends { deathBenefit: unknown; monthlyPremium: unknown; cashValue: unknown }>(policy: T) {
+  return { ...policy, deathBenefit: formatMoney(policy.deathBenefit as number | null), monthlyPremium: formatMoney(policy.monthlyPremium as number | null), cashValue: formatMoney(policy.cashValue as number | null) };
+}
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -14,10 +21,7 @@ export async function GET() {
       .select("id, fullName:full_name, phone, dateOfBirth:date_of_birth, onboardingStatus:onboarding_status, onboardingStep:onboarding_step, profile, createdAt:created_at, updatedAt:updated_at")
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase
-      .from("user_policies")
-      .select("id, policyNumber:policy_number, policyType:policy_type, carrier, insuredName:insured_name, ownerName:owner_name, deathBenefit:death_benefit, monthlyPremium:monthly_premium, effectiveDate:effective_date, beneficiaries, cashValue:cash_value, sourceFileName:source_file_name, createdAt:created_at, updatedAt:updated_at")
-      .eq("user_id", user.id),
+    supabase.from("user_policies").select(POLICY_SELECT).eq("user_id", user.id),
     supabase
       .from("documents")
       .select("id, fileName:file_name, contentType:content_type, fileSize:file_size, policyNumber:policy_number, processingStatus:processing_status, createdAt:created_at")
@@ -30,9 +34,9 @@ export async function GET() {
 
   return Response.json({
     user,
-    isAgent: await isAgent(user.email),
+    isAgent: await isAgent(user.id),
     profile,
-    policies: policies || [],
+    policies: (policies || []).map(formatPolicy),
     documents: files || [],
     requests: (requests || []).map((request) => ({ ...request, requestDataJson: JSON.stringify(request.requestDataJson || {}) })),
   });
@@ -53,9 +57,10 @@ export async function POST(request: Request) {
     .upsert(
       {
         user_id: user.id,
+        email: user.email,
         full_name: fullName,
         phone: body.phone?.trim().slice(0, 30) || "",
-        date_of_birth: body.dateOfBirth?.trim().slice(0, 10) || "",
+        date_of_birth: body.dateOfBirth?.trim() || null,
         onboarding_status: status,
         onboarding_step: Math.max(0, Math.min(7, Number(body.onboardingStep) || 0)),
         profile: cleanProfile,

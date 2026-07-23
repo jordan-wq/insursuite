@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const requestType = body.requestType.trim().slice(0, 120);
   const details = (body.details || "").trim().slice(0, 4000);
   const requestData = sanitizeServiceRequestData(body.requestData);
-  const assignedTo = await chooseAgent(user.email);
+  const assignedTo = await chooseAgent(user.id);
   const priority = priorityForUrgency(requestData.urgency);
 
   const supabase = await createServerSupabase();
@@ -54,8 +54,8 @@ export async function POST(request: Request) {
   if (assignedTo) {
     const admin = createAdminSupabase();
     await admin.from("agent_notifications").insert({
-      agent_email: assignedTo,
-      client_email: user.email,
+      agent_id: assignedTo,
+      client_id: user.id,
       service_request_id: saved.id,
       title: `New ${requestType} request`,
       message: details.slice(0, 500),
