@@ -36,7 +36,8 @@ InsurSuite's core loop (auth, policies, documents, service requests) is live on 
   ```
 - Real logo files fetched from each carrier's official press/newsroom assets and saved under `public/carriers/*.svg` (or `.png` where no vector is available) during implementation. Initial set = the carriers already referenced in this codebase's sample data (Northwestern Mutual, Banner Life, Haven Life, RBC Insurance, Mutual of Omaha); more can be added later by dropping in a file and a lookup entry.
 - A carrier not in the directory (or before a logo file is sourced) falls back to an initials badge — the same visual pattern already used for people's avatars everywhere else in the app. Never a broken image.
-- Shown: policy row icon slot, policy detail modal (plus a "Visit [Carrier]" link button next to Manage Policy), and the document row where a document is linked to a policy.
+- Shown: policy row icon slot (replaces today's generic type-based Lucide icon for any *real, non-sample* policy with a matched carrier). Sample/demo policies (`policy.isSample`) always keep the current placeholder icon regardless of whether their carrier name happens to match the directory — real branding only applies to a client's actual saved data, consistent with how sample data is visually distinguished everywhere else in the app (`DataModeBanner`, "Example" activity labels). Also shown in the policy detail modal (plus a "Visit [Carrier]" link button next to Manage Policy) and the document row where a document is linked to a policy. Carrier-name matching against `CARRIER_DIRECTORY` is case-insensitive exact match on the trimmed carrier string; no match falls back to the initials badge.
+- Sourcing the actual logo files is manual, per-carrier implementation work (pulling from each carrier's official press/newsroom page), not an automated step — expect a handful of image files added directly as part of building this.
 
 ## 3. Packet delivery status + agent workflow
 
@@ -48,7 +49,8 @@ InsurSuite's core loop (auth, policies, documents, service requests) is live on 
 
 - New `notifications` table: `id uuid, user_id uuid, type text, title text, message text, read boolean default false, related_policy_id uuid null, created_at timestamptz`. RLS: owner-only select/update (mark read), same pattern as every other client-owned table. Inserts happen via the admin client from trigger points (agent actions), same as `agent_notifications` today.
 - `NotificationsView` (currently a hardcoded array) becomes a real `/api/notifications` GET (list) + PATCH (mark read/mark all read), replacing the static list — same shape, real data.
-- First two triggers: packet delivered (above), and premium-due-soon (a lightweight check — e.g. computed when the client-profile/dashboard data loads — no cron/background job needed yet).
+- The two other hardcoded "3" unread indicators in `app/page.tsx` (the sidebar nav badge on the Notifications item, and the header bell button's count) must be driven by the same real unread count — not left as static placeholders once the list itself is real.
+- First two triggers: packet delivered (above), and premium-due-soon (a lightweight check — e.g. computed when the client-profile/dashboard data loads — no cron/background job needed yet). Dedup rule: before inserting a premium-due-soon notification, skip if an unread notification of that type already exists for that policy — this is a repeated-load check, not a scheduled job, so without this guard the same reminder would be inserted on every dashboard visit.
 
 ## 5. QR code + mobile install tutorial
 
