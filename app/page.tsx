@@ -103,6 +103,16 @@ type ServiceRequest = { id: string; requestType: string; details: string; status
 function ticketCode(id: string | undefined | null): string {
   return String(id || "").replace(/-/g, "").slice(0, 6).toUpperCase() || "PENDING";
 }
+
+function premiumDueLabel(dateStr?: string): { text: string; tone: "default" | "warning" | "danger" } | null {
+  if (!dateStr) return null;
+  const due = new Date(dateStr);
+  if (Number.isNaN(due.getTime())) return null;
+  const days = Math.ceil((due.getTime() - Date.now()) / 86400000);
+  if (days < 0) return { text: `${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} overdue`, tone: "danger" };
+  if (days === 0) return { text: "Due today", tone: "warning" };
+  return { text: `Due in ${days} day${days === 1 ? "" : "s"}`, tone: days <= 14 ? "warning" : "default" };
+}
 type IntakeField = { key: string; label: string; type?: "text" | "date" | "number" | "select" | "textarea" | "checkbox"; placeholder?: string; options?: string[]; required?: boolean; helper?: string };
 type SupportRequestInput = { requestType: string; details: string; requestData?: Record<string, string | boolean | null> };
 type ReviewMetric = { label: string; score: number; text: string; icon: LucideIcon; color: string };
@@ -322,12 +332,13 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
           <div className="policy-list">
             {policyData.slice(0, 6).map((policy) => {
               const Icon = policy.icon;
+              const dueLabel = premiumDueLabel(policy.premiumDueDate);
               return (
                 <button key={policy.id} className="policy-row" onClick={() => onPolicy(policy)}>
                   <span className={`policy-icon ${policy.color}`}><Icon size={21} /></span>
                   <span className="policy-name"><strong>{policy.type}</strong><small>{policy.carrier}</small></span>
                   <span className="policy-number"><small>Policy # {policy.id}</small><span>Active</span></span>
-                  <span className="policy-benefit"><strong>{policy.benefit}</strong><small>Death Benefit</small></span>
+                  <span className="policy-benefit"><strong>{policy.benefit}</strong><small>Death Benefit</small>{dueLabel && <small className={`premium-due-chip ${dueLabel.tone}`}>{dueLabel.text}</small>}</span>
                   <ChevronRight size={18} className="row-chevron" />
                 </button>
               );
@@ -397,7 +408,7 @@ function PoliciesView({ onPolicy, onOpen, notify, policyData, isSample }: { onPo
     <DataModeBanner sample={isSample} />
     <div className="summary-strip"><div><span>Saved policies</span><strong>{policyData.length}</strong><small>{isSample ? "Illustrative examples" : "Client records"}</small></div><div><span>Total protection</span><strong>{currency(portfolioMetrics(policyData).benefit)}</strong><small>Recorded death benefits</small></div><div><span>Monthly cost</span><strong>{currency(portfolioMetrics(policyData).premium)}</strong><small>Recorded premiums</small></div><div><span>Cash value</span><strong>{currency(portfolioMetrics(policyData).cash)}</strong><small>Where reported</small></div></div>
     <Panel className="workspace-panel"><div className="workspace-toolbar"><div className="section-search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search policies or carriers" aria-label="Search policies" /></div><label className="select-wrap"><Filter size={16} /><select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter policies"><option>All policies</option><option>Permanent</option><option>Term</option></select></label></div>
-      <div className="large-policy-list">{visible.map((policy) => { const Icon = policy.icon; const checked = compare.includes(policy.id); return <article key={policy.id} className="large-policy-card"><button className="large-policy-main" onClick={() => onPolicy(policy)}><span className={`policy-icon ${policy.color}`}><Icon size={21} /></span><span><strong>{policy.type}</strong><small>{policy.carrier} · #{policy.id}</small></span></button><div><small>Death benefit</small><strong>{policy.benefit}</strong></div><div><small>Premium</small><strong>{policy.premium}</strong></div><div><small>Status</small><span className="status active"><Check size={13} />Active</span></div><button className={`compare-toggle ${checked ? "selected" : ""}`} onClick={() => toggleCompare(policy.id)}>{checked ? <Check size={15} /> : <Plus size={15} />}{checked ? "Selected" : "Compare"}</button><button className="row-action" aria-label={`Open ${policy.type}`} onClick={() => onPolicy(policy)}><ChevronRight size={19} /></button></article>; })}{!visible.length && <div className="empty-state"><Search size={29} /><strong>No policies found</strong><p>Try another carrier, policy number, or filter.</p></div>}</div>
+      <div className="large-policy-list">{visible.map((policy) => { const Icon = policy.icon; const checked = compare.includes(policy.id); const dueLabel = premiumDueLabel(policy.premiumDueDate); return <article key={policy.id} className="large-policy-card"><button className="large-policy-main" onClick={() => onPolicy(policy)}><span className={`policy-icon ${policy.color}`}><Icon size={21} /></span><span><strong>{policy.type}</strong><small>{policy.carrier} · #{policy.id}</small>{dueLabel && <small className={`premium-due-chip ${dueLabel.tone}`}>{dueLabel.text}</small>}</span></button><div><small>Death benefit</small><strong>{policy.benefit}</strong></div><div><small>Premium</small><strong>{policy.premium}</strong></div><div><small>Status</small><span className="status active"><Check size={13} />Active</span></div><button className={`compare-toggle ${checked ? "selected" : ""}`} onClick={() => toggleCompare(policy.id)}>{checked ? <Check size={15} /> : <Plus size={15} />}{checked ? "Selected" : "Compare"}</button><button className="row-action" aria-label={`Open ${policy.type}`} onClick={() => onPolicy(policy)}><ChevronRight size={19} /></button></article>; })}{!visible.length && <div className="empty-state"><Search size={29} /><strong>No policies found</strong><p>Try another carrier, policy number, or filter.</p></div>}</div>
     </Panel>
     {compare.length > 0 && <div className="compare-tray"><div><WalletCards size={20} /><span><strong>{compare.length} selected</strong><small>Select up to 3 policies</small></span></div><button className="secondary-button" onClick={() => setCompare([])}>Clear</button><button className="primary-button" disabled={compare.length < 2} onClick={() => notify("Your side-by-side policy comparison is ready.")}>Compare policies</button></div>}
   </div>;
@@ -809,7 +820,7 @@ export default function HomePage() {
         setStoredDocuments(result.documents || []);
         setStoredRequests(result.requests || []);
         setAgentAccess(Boolean(result.isAgent));
-        const savedPolicies: Policy[] = (result.policies || []).map((policy: Record<string, string>) => ({ id: policy.policyNumber, type: policy.policyType || "Imported Life Insurance Policy", carrier: policy.carrier || "Carrier needs review", benefit: policy.deathBenefit || "$0", premium: policy.monthlyPremium ? `${policy.monthlyPremium}/mo` : "$0/mo", cashValue: policy.cashValue || "$0", beneficiaries: policy.beneficiaries || "", color: "blue" as const, icon: ShieldCheck }));
+        const savedPolicies: Policy[] = (result.policies || []).map((policy: Record<string, string>) => ({ id: policy.policyNumber, type: policy.policyType || "Imported Life Insurance Policy", carrier: policy.carrier || "Carrier needs review", benefit: policy.deathBenefit || "$0", premium: policy.monthlyPremium ? `${policy.monthlyPremium}/mo` : "$0/mo", cashValue: policy.cashValue || "$0", beneficiaries: policy.beneficiaries || "", premiumDueDate: policy.premiumDueDate, color: "blue" as const, icon: ShieldCheck }));
         setScannedPolicies(savedPolicies);
         if (!result.profile) { setPortalMode("create"); return; }
         setStoredProfile(result.profile);
