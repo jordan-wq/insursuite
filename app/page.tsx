@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { CALL_INTAKE_REQUIRED_FIELDS, READINESS_PROFILE_FIELDS } from "./profile-fields";
 import { lookupCarrier } from "./carriers";
+import { Panel, PanelHeader, ticketCode, ViewHeading } from "./components/shared";
 
 type NavKey =
   | "Dashboard"
@@ -100,10 +101,6 @@ type PortalUser = { displayName: string; email: string; fullName: string | null 
 type StoredProfile = { fullName: string; phone: string; dateOfBirth: string; onboardingStatus: string; onboardingStep: number; profile: Record<string, string | boolean> };
 type PortalDocument = { id: string; fileName: string; contentType: string; fileSize: number; policyNumber: string; processingStatus: string; createdAt: string };
 type ServiceRequest = { id: string; requestType: string; details: string; status: string; createdAt: string; assignedTo?: string; source?: string; requestDataJson?: string; priority?: string };
-
-function ticketCode(id: string | undefined | null): string {
-  return String(id || "").replace(/-/g, "").slice(0, 6).toUpperCase() || "PENDING";
-}
 
 function premiumDueLabel(dateStr?: string): { text: string; tone: "default" | "warning" | "danger" } | null {
   if (!dateStr) return null;
@@ -270,19 +267,6 @@ function StatCard({ label, value, note, tone, icon: Icon }: { label: string; val
   );
 }
 
-function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`panel ${className}`}>{children}</section>;
-}
-
-function PanelHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
-  return (
-    <div className="panel-header">
-      <h2>{title}</h2>
-      {action && <button className="text-button" onClick={onAction}>{action}</button>}
-    </div>
-  );
-}
-
 function ScoreRing({ score }: { score: number }) {
   return (
     <div className="score-ring" aria-label={`Overall coverage score ${score} percent`} style={{ "--score": `${score}%` } as React.CSSProperties}>
@@ -393,10 +377,6 @@ function Dashboard({ onNavigate, onPolicy, onOpen, policyData, profile, document
       <div className="expert-bar"><span><UsersRound size={22} /><strong>Need Expert Help?</strong> Connect with your dedicated insurance consultant.</span><button onClick={() => onOpen("concierge")}><MessageCircle size={17} />Message My Consultant</button></div>
     </>
   );
-}
-
-function ViewHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
-  return <div className="view-heading"><div><span>{eyebrow}</span><h2>{title}</h2><p>{description}</p></div>{action && <div className="view-heading-actions">{action}</div>}</div>;
 }
 
 function PoliciesView({ onPolicy, onOpen, notify, policyData, isSample }: { onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; notify: (message: string) => void; policyData: Policy[]; isSample: boolean }) {
