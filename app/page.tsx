@@ -133,7 +133,7 @@ const navItems: { label: NavKey; icon: LucideIcon; badge?: number }[] = [
   { label: "Document Vault", icon: FileText },
   { label: "Support Center", icon: Headphones },
   { label: "Call Intake", icon: ClipboardCheck },
-  { label: "Notifications", icon: Bell, badge: 3 },
+  { label: "Notifications", icon: Bell },
   { label: "Family & Household", icon: UsersRound },
   { label: "Agent Console", icon: Headphones },
   { label: "Settings", icon: Settings },
@@ -562,9 +562,12 @@ function CoverageView({ onOpen, policyData, profile, documents }: { onOpen: (mod
 }
 
 function NotificationsView({ notify }: { notify: (message: string) => void }) {
-  const [unread, setUnread] = useState(["review", "ticket", "document"]);
-  const notifications = [{ id: "review", icon: CalendarDays, title: "Your annual review is ready", detail: "Choose a 30-minute time with Maya to refresh your coverage plan.", time: "12 min ago" }, { id: "ticket", icon: TicketCheck, title: "Your request moved forward", detail: "Your proof of insurance request is now in progress.", time: "2 hours ago" }, { id: "document", icon: FileCheck2, title: "Document processed successfully", detail: "IUL_Statement_May2026.pdf is now connected to your IUL policy.", time: "2 hours ago" }, { id: "beneficiary", icon: UsersRound, title: "Beneficiary update confirmed", detail: "Your Whole Life policy beneficiary review was completed.", time: "Yesterday" }];
-  return <div className="section-view"><ViewHeading eyebrow="Account activity" title="Notifications" description="Coverage reminders, document updates, and request progress in one timeline." action={<button className="secondary-button" onClick={() => { setUnread([]); notify("All notifications marked as read."); }}><CheckCircle2 size={16} />Mark all read</button>} /><Panel className="notification-list">{notifications.map(({ id, icon: Icon, title, detail, time }) => <button key={id} className={unread.includes(id) ? "unread" : ""} onClick={() => setUnread((current) => current.filter((item) => item !== id))}><span className="notification-icon"><Icon size={20} /></span><span><strong>{title}</strong><small>{detail}</small></span><time>{time}</time>{unread.includes(id) && <i />}</button>)}</Panel></div>;
+  const [notifications, setNotifications] = useState<{ id: string; type: string; title: string; message: string; read: boolean; createdAt: string }[]>([]);
+  const load = () => fetch("/api/notifications", { cache: "no-store" }).then((r) => r.json()).then((d) => setNotifications(d.notifications || []));
+  useEffect(() => { load(); }, []);
+  const markRead = async (id: string) => { await fetch("/api/notifications", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }); load(); };
+  const markAllRead = async () => { await fetch("/api/notifications", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ markAllRead: true }) }); notify("All notifications marked as read."); load(); };
+  return <div className="section-view"><ViewHeading eyebrow="Account activity" title="Notifications" description="Coverage reminders, document updates, and request progress in one timeline." action={<button className="secondary-button" onClick={markAllRead}><CheckCircle2 size={16} />Mark all read</button>} /><Panel className="notification-list">{notifications.map(({ id, title, message, read, createdAt }) => <button key={id} className={read ? "" : "unread"} onClick={() => markRead(id)}><span className="notification-icon"><Bell size={20} /></span><span><strong>{title}</strong><small>{message}</small></span><time>{new Date(createdAt).toLocaleDateString()}</time>{!read && <i />}</button>)}{!notifications.length && <div className="empty-state"><CheckCircle2 size={28} /><strong>No notifications yet</strong><p>You&apos;ll see policy and account updates here.</p></div>}</Panel></div>;
 }
 
 function FamilyView({ onOpen, notify }: { onOpen: (modal: string) => void; notify: (message: string) => void }) {
@@ -795,6 +798,7 @@ export default function HomePage() {
   const [extractedPolicy, setExtractedPolicy] = useState<ExtractedPolicy | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [scanSaving, setScanSaving] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const isSampleMode = scannedPolicies.length === 0;
   const allPolicies = useMemo(() => isSampleMode ? samplePolicies : scannedPolicies, [scannedPolicies, isSampleMode]);
@@ -854,6 +858,8 @@ export default function HomePage() {
     loadPortal();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => { fetch("/api/notifications", { cache: "no-store" }).then((r) => r.json()).then((d) => setUnreadCount((d.notifications || []).filter((n: { read: boolean }) => !n.read).length)); }, [portalMode]);
 
   const resetScanner = () => {
     setScanStage("idle"); setScanProgress(0); setScanStep("Preparing document"); setScanFileName(""); setScanError(""); setExtractedPolicy(null); setScanFile(null); setScanSaving(false);
@@ -967,7 +973,7 @@ export default function HomePage() {
       <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
         <div className="brand"><div className="brand-mark"><ShieldCheck size={25} /></div><div><strong>Insur<span>Suite</span></strong><small>Your Complete Insurance Command Center</small></div></div>
         <nav aria-label="Main navigation">
-          {navItems.filter((item) => item.label !== "Agent Console" || agentAccess).map(({ label, icon: Icon, badge }) => <button key={label} className={active === label ? "active" : ""} onClick={() => navigate(label)}><Icon size={20} /><span>{label}</span>{badge && <b>{badge}</b>}</button>)}
+          {navItems.filter((item) => item.label !== "Agent Console" || agentAccess).map(({ label, icon: Icon, badge }) => { const displayBadge = label === "Notifications" ? unreadCount : badge; return <button key={label} className={active === label ? "active" : ""} onClick={() => navigate(label)}><Icon size={20} /><span>{label}</span>{Boolean(displayBadge) && <b>{displayBadge}</b>}</button>; })}
         </nav>
         <div className="premium-card"><div><Gem size={20} /><strong>InsurSuite Premium</strong></div><p>Unlock advanced tools, unlimited AI conversations, and priority support.</p><button onClick={() => setModal("upgrade")}>Upgrade My Plan</button></div>
         <button className="account-card" onClick={() => navigate("Settings")}><span className="avatar">{(storedProfile?.fullName || "Account").split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{storedProfile?.fullName || portalUser?.displayName || "Account owner"}</strong><small>Account Owner</small></span><ChevronDown size={18} /></button>
@@ -980,7 +986,7 @@ export default function HomePage() {
           <div className="welcome"><p className="mobile-brand">InsurSuite</p><h1>{active === "Dashboard" ? `Welcome back, ${String(storedProfile?.profile?.preferredName || storedProfile?.fullName || "there")}` : active}</h1><p>{active === "Dashboard" ? "Here’s what needs attention across your coverage file." : "Manage every detail of your coverage in one place."}</p></div>
           <div className="header-tools">
             <div className="global-search"><Search size={18} /><input value={search} onFocus={() => setSearchOpen(true)} onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }} placeholder="Search anything..." aria-label="Search InsurSuite" />{search && <button onClick={() => setSearch("")} aria-label="Clear search"><X size={15} /></button>}</div>
-            <button className="icon-button notification-button" onClick={() => navigate("Notifications")} aria-label="Notifications"><Bell size={22} /><span>3</span></button>
+            <button className="icon-button notification-button" onClick={() => navigate("Notifications")} aria-label="Notifications"><Bell size={22} />{unreadCount > 0 && <span>{unreadCount}</span>}</button>
             <button className="icon-button" onClick={() => navigate("Support Center")} aria-label="Help"><CircleHelp size={23} /></button>
           </div>
           {searchOpen && (search || results.length > 0) && <div className="search-results"><div className="search-label">Search results</div>{results.length ? results.map((result) => <button key={result.title + result.detail} onClick={() => { setSearchOpen(false); setSearch(""); if (result.type === "nav") navigate(result.value as NavKey); else setSelectedPolicy(result.value as Policy); }}><Search size={16} /><span><strong>{result.title}</strong><small>{result.detail}</small></span><ArrowRight size={15} /></button>) : <p>No matching policies or sections.</p>}</div>}
