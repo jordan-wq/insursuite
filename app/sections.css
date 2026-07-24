@@ -205,3 +205,6 @@
 .premium-due-chip { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 650; background: var(--color-surface-muted); color: var(--color-text-muted); }
 .premium-due-chip.warning { background: #fff4e0; color: #9a5b00; }
 .premium-due-chip.danger { background: #fdeaea; color: #b42318; }
+
+.carrier-badge-logo { border-radius: 10px; object-fit: contain; background: #fff; }
+.carrier-badge-initials { display: grid; place-items: center; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-text-muted); font-weight: 700; font-size: 12px; }
