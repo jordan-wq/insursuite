@@ -64,7 +64,6 @@ type NavKey =
   | "Notifications"
   | "Family & Household"
   | "Claims Concierge"
-  | "Agent Console"
   | "Settings";
 
 type Policy = {
@@ -132,7 +131,6 @@ const navItems: { label: NavKey; icon: LucideIcon; badge?: number }[] = [
   { label: "Call Intake", icon: ClipboardCheck },
   { label: "Notifications", icon: Bell },
   { label: "Family & Household", icon: UsersRound },
-  { label: "Agent Console", icon: Headphones },
   { label: "Settings", icon: Settings },
 ];
 
@@ -509,32 +507,6 @@ function CallIntakeView({ profile, policyData, documents, notify, onSave }: { pr
   return <div className="section-view call-intake-view"><ViewHeading eyebrow="Live client call workspace" title="Call Intake" description="Ask questions, capture underwriting details, and leave the call with a usable advisor-ready client profile." action={<button className="primary-button" onClick={save} disabled={saving}><CheckCircle2 size={17} />{saving ? "Saving..." : "Save intake"}</button>} /><div className="call-command"><aside className="call-script"><Panel><PanelHeader title="Call flow" /><div className="call-progress"><strong>{completed}/{CALL_INTAKE_REQUIRED_FIELDS.length}</strong><span><i style={{ width: `${Math.round(completed / CALL_INTAKE_REQUIRED_FIELDS.length * 100)}%` }} /></span><small>Core underwriting facts captured</small></div><nav>{sections.map(({ name, icon: Icon }) => <button key={name} className={activeSection === name ? "active" : ""} onClick={() => setActiveSection(name)}><Icon size={16} />{name}</button>)}</nav></Panel><Panel><PanelHeader title="Suggested questions" /><div className="question-stack">{active.questions.map((question) => <button key={question} onClick={() => appendNote(`Asked: ${question}`)}><MessageCircle size={15} />{question}</button>)}</div></Panel></aside><Panel className="underwriting-sheet"><div className="sheet-head"><div><span>{active.name}</span><h3>Underwriting Sheet</h3></div><select value={String(fields.underwritingStatus || "Call in progress")} onChange={(event) => update("underwritingStatus", event.target.value)} aria-label="Underwriting status"><option>Call in progress</option><option>Waiting on documents</option><option>Ready for advisor review</option><option>Application likely</option><option>Not a fit yet</option></select></div><div className="sheet-grid">{active.fields.map(([key, label]) => <label key={key}>{label}{key === "policyConcerns" || key === "healthNotes" || key === "businessObligations" || key === "lifeEvents" ? <textarea value={String(fields[key] || "")} onChange={(event) => update(key, event.target.value)} placeholder={`Capture ${label.toLowerCase()}...`} /> : <input value={String(fields[key] || "")} onChange={(event) => update(key, event.target.value)} placeholder={`Add ${label.toLowerCase()}`} />}</label>)}</div><div className="call-record-strip"><span><FileText size={16} />{documents.length} vault document{documents.length === 1 ? "" : "s"}</span><span><ShieldCheck size={16} />{policyData.length} saved polic{policyData.length === 1 ? "y" : "ies"}</span><span><Clock3 size={16} />Status: {String(fields.underwritingStatus || "Call in progress")}</span></div></Panel><aside className="call-notes"><Panel><PanelHeader title="Live notes" /><textarea value={String(fields.underwritingCallNotes || "")} onChange={(event) => update("underwritingCallNotes", event.target.value)} placeholder="Type raw notes while the client talks. Use the guided questions to add prompts here as you go." /><div className="note-actions"><button onClick={() => appendNote("Client wants advisor follow-up.")}>Advisor follow-up</button><button onClick={() => appendNote("Need policy document upload.")}>Need docs</button><button onClick={() => appendNote("Potential underwriting concern.")}>Risk concern</button></div></Panel><Panel><PanelHeader title="Next step" /><label className="call-outcome">Call outcome<textarea value={String(fields.callOutcome || "")} onChange={(event) => update("callOutcome", event.target.value)} placeholder="Example: send term quote, request statements, schedule advisor review..." /></label><button className="secondary-button full" onClick={save} disabled={saving}><Check size={16} />Save call notes</button></Panel></aside></div></div>;
 }
 
-function AgentConsole() {
-  type QueueItem = ServiceRequest & { clientName: string; userId: string; unreadByAgent: boolean; requestData?: Record<string, string | boolean> };
-  type KnowledgeItem = { id: string; question: string };
-  type ClientPolicy = { id: string; policyNumber: string; carrier: string; packetStatus: string };
-  const [queue, setQueue] = useState<QueueItem[]>([]); const [entries, setEntries] = useState<KnowledgeItem[]>([]); const [notice, setNotice] = useState("");
-  const [expandedClient, setExpandedClient] = useState<string | null>(null);
-  const [clientPolicies, setClientPolicies] = useState<Record<string, ClientPolicy[]>>({});
-  const load = async () => { const [q, k] = await Promise.all([fetch("/api/agent/queue", { cache: "no-store" }), fetch("/api/knowledge", { cache: "no-store" })]); if (q.ok) setQueue((await q.json()).requests || []); if (k.ok) setEntries((await k.json()).entries || []); };
-  useEffect(() => { Promise.all([fetch("/api/agent/queue", { cache: "no-store" }), fetch("/api/knowledge", { cache: "no-store" })]).then(async ([q, k]) => { if (q.ok) setQueue((await q.json()).requests || []); if (k.ok) setEntries((await k.json()).entries || []); }); }, []);
-  const update = async (id: string, status: string) => { await fetch("/api/agent/queue", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, status }) }); load(); };
-  const addKnowledge = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const response = await fetch("/api/knowledge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: form.get("question"), keywords: form.get("keywords"), answer: form.get("answer") }) }); setNotice(response.ok ? "Training answer published." : "Could not publish answer."); if (response.ok) { event.currentTarget.reset(); load(); } };
-  const toggleClient = async (clientId: string) => {
-    if (expandedClient === clientId) { setExpandedClient(null); return; }
-    setExpandedClient(clientId);
-    if (!clientPolicies[clientId]) {
-      const response = await fetch(`/api/agent/policies?clientId=${clientId}`);
-      if (response.ok) { const result = await response.json(); setClientPolicies((current) => ({ ...current, [clientId]: result.policies })); }
-    }
-  };
-  const updatePacketStatus = async (policyId: string, clientId: string, packetStatus: string) => {
-    await fetch("/api/agent/policies", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: policyId, packetStatus }) });
-    setClientPolicies((current) => ({ ...current, [clientId]: current[clientId].map((p) => p.id === policyId ? { ...p, packetStatus } : p) }));
-  };
-  return <div className="section-view"><ViewHeading eyebrow="Customer service operations" title="Agent Console" description="New client and chatbot tickets are assigned here automatically." /><div className="agent-console-grid"><Panel><PanelHeader title={`My assigned queue (${queue.filter((item) => item.status !== "resolved").length})`} /><div className="agent-queue">{queue.map((item) => <article key={item.id} className={item.unreadByAgent ? "unread" : ""}><div><button type="button" className="text-button agent-client-name" onClick={() => toggleClient(item.userId)}><strong>{item.clientName}</strong></button><span>{item.requestType} · IS-{ticketCode(item.id)}{item.priority === "urgent" ? " · URGENT" : ""}</span><p>{item.details}</p>{item.requestData && <dl className="agent-intake-details">{Object.entries(item.requestData).filter(([, value]) => value && value !== "on").map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, " $1")}</dt><dd>{String(value)}</dd></div>)}</dl>}<small>{item.source === "chatbot" ? "Escalated by chatbot" : "Submitted by client form"}</small>{expandedClient === item.userId && <div className="agent-client-policies"><strong>Policies</strong>{clientPolicies[item.userId]?.length ? clientPolicies[item.userId].map((policy) => <div key={policy.id}><span>{policy.carrier || "Carrier needs review"} · #{policy.policyNumber}</span><select value={policy.packetStatus} onChange={(e) => updatePacketStatus(policy.id, item.userId, e.target.value)}><option value="not_sent">Not Sent</option><option value="sent">Sent</option><option value="delivered">Delivered</option></select></div>) : <p>No saved policies for this client yet.</p>}</div>}</div><select value={item.status} onChange={(e) => update(item.id, e.target.value)}><option value="assigned">Assigned</option><option value="in_progress">In progress</option><option value="waiting_on_client">Waiting on client</option><option value="resolved">Resolved</option></select></article>)}{!queue.length && <div className="empty-state"><CheckCircle2 size={28} /><strong>Queue is clear</strong><p>New assigned tickets will appear here.</p></div>}</div></Panel><Panel><PanelHeader title="Train the chatbot" /><form className="knowledge-form" onSubmit={addKnowledge}><label>Customer question<input name="question" required placeholder="How do I change a beneficiary?" /></label><label>Keywords<input name="keywords" placeholder="beneficiary, change, update" /></label><label>Approved answer<textarea name="answer" required placeholder="Write the exact safe answer the bot should use..." /></label><button className="primary-button">Publish answer</button>{notice && <small>{notice}</small>}</form><div className="knowledge-list"><strong>{entries.length} approved answers</strong>{entries.slice(0,5).map((entry) => <p key={entry.id}>{entry.question}</p>)}</div></Panel></div></div>;
-}
-
 function CoverageView({ onOpen, policyData, profile, documents }: { onOpen: (modal: string) => void; policyData: Policy[]; profile: StoredProfile | null; documents: PortalDocument[] }) {
   const review = coverageReviewModel(policyData, profile, documents);
   const headline = review.score >= 80 ? "Your protection file is in good shape." : review.score >= 60 ? "A few gaps need attention." : "Start by verifying the core coverage records.";
@@ -585,7 +557,6 @@ function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyDa
   if (active === "Notifications") return <NotificationsView notify={notify} />;
   if (active === "Family & Household") return <FamilyView onOpen={onOpen} notify={notify} />;
   if (active === "Claims Concierge") return <ClaimsView onOpen={onOpen} notify={notify} />;
-  if (active === "Agent Console") return <AgentConsole />;
   return <SettingsView notify={notify} user={user} profile={profile} />;
 }
 
@@ -769,7 +740,6 @@ export default function HomePage() {
   const [storedProfile, setStoredProfile] = useState<StoredProfile | null>(null);
   const [storedDocuments, setStoredDocuments] = useState<PortalDocument[]>([]);
   const [storedRequests, setStoredRequests] = useState<ServiceRequest[]>([]);
-  const [agentAccess, setAgentAccess] = useState(false);
   const [portalError, setPortalError] = useState("");
   const [active, setActive] = useState<NavKey>("Dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -834,7 +804,6 @@ export default function HomePage() {
         setPortalUser(result.user);
         setStoredDocuments(result.documents || []);
         setStoredRequests(result.requests || []);
-        setAgentAccess(Boolean(result.isAgent));
         const savedPolicies: Policy[] = (result.policies || []).map((policy: Record<string, string>) => ({ id: policy.policyNumber, type: policy.policyType || "Imported Life Insurance Policy", carrier: policy.carrier || "Carrier needs review", benefit: policy.deathBenefit || "$0", premium: policy.monthlyPremium ? `${policy.monthlyPremium}/mo` : "$0/mo", cashValue: policy.cashValue || "$0", beneficiaries: policy.beneficiaries || "", premiumDueDate: policy.premiumDueDate, color: "blue" as const, icon: ShieldCheck }));
         setScannedPolicies(savedPolicies);
         if (!result.profile) { setPortalMode("create"); return; }
@@ -943,6 +912,16 @@ export default function HomePage() {
     window.setTimeout(() => setToast(null), 3500);
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("notice") === "staff_access_denied") {
+      notify("Your account doesn't have staff access.");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("notice");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
   const results = useMemo(() => {
     const term = search.toLowerCase().trim();
     if (!term) return [];
@@ -962,7 +941,7 @@ export default function HomePage() {
       <aside className={`sidebar ${mobileOpen ? "open" : ""}`}>
         <div className="brand"><div className="brand-mark"><ShieldCheck size={25} /></div><div><strong>Insur<span>Suite</span></strong><small>Your Complete Insurance Command Center</small></div></div>
         <nav aria-label="Main navigation">
-          {navItems.filter((item) => item.label !== "Agent Console" || agentAccess).map(({ label, icon: Icon, badge }) => { const displayBadge = label === "Notifications" ? unreadCount : badge; return <button key={label} className={active === label ? "active" : ""} onClick={() => navigate(label)}><Icon size={20} /><span>{label}</span>{Boolean(displayBadge) && <b>{displayBadge}</b>}</button>; })}
+          {navItems.map(({ label, icon: Icon, badge }) => { const displayBadge = label === "Notifications" ? unreadCount : badge; return <button key={label} className={active === label ? "active" : ""} onClick={() => navigate(label)}><Icon size={20} /><span>{label}</span>{Boolean(displayBadge) && <b>{displayBadge}</b>}</button>; })}
         </nav>
         <div className="premium-card"><div><Gem size={20} /><strong>InsurSuite Premium</strong></div><p>Unlock advanced tools, unlimited AI conversations, and priority support.</p><button onClick={() => setModal("upgrade")}>Upgrade My Plan</button></div>
         <button className="account-card" onClick={() => navigate("Settings")}><span className="avatar">{(storedProfile?.fullName || "Account").split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{storedProfile?.fullName || portalUser?.displayName || "Account owner"}</strong><small>Account Owner</small></span><ChevronDown size={18} /></button>
