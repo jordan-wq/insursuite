@@ -558,13 +558,29 @@ function ClaimsView({ notify, onOpen }: { notify: (message: string) => void; onO
   return <div className="section-view"><div className="claims-hero"><span className="claims-icon"><HeartHandshake size={31} /></span><span className="pill purple">Compassionate support</span><h2>You do not have to navigate a claim alone.</h2><p>InsurSuite helps families organize documents, contact the right carrier, and understand what happens next—step by step.</p><div><button className="primary-button" onClick={() => notify("A private claim intake has started.")}><FileCheck2 size={17} />Start a claim</button><button className="secondary-button" onClick={() => onOpen("concierge")}><Phone size={17} />Talk to a concierge</button></div></div><div className="claim-steps"><article><span>1</span><div><strong>Tell us what happened</strong><p>Share the policyholder and policy details in a private intake.</p></div></article><article><span>2</span><div><strong>We organize the claim</strong><p>Your concierge prepares the carrier checklist and documents.</p></div></article><article><span>3</span><div><strong>Track every milestone</strong><p>See requests, follow-ups, and claim status in one timeline.</p></div></article></div><div className="claims-bottom"><Panel><LifeBuoy size={25} /><h3>Already filed with a carrier?</h3><p>Add the claim number and we’ll help you keep the process organized.</p><button className="secondary-button" onClick={() => notify("Existing claim form opened.")}>Track an existing claim</button></Panel><Panel><FolderLock size={25} /><h3>Prepare before it is needed</h3><p>Keep policy documents and emergency contacts ready in your secure vault.</p><button className="secondary-button" onClick={() => onOpen("upload")}>Organize documents</button></Panel></div></div>;
 }
 
-function SettingsView({ notify, user, profile }: { notify: (message: string) => void; user: PortalUser | null; profile: StoredProfile | null }) {
-  const [preferences, setPreferences] = useState({ email: true, sms: true, policy: true, marketing: false });
-  const toggle = (key: keyof typeof preferences) => setPreferences((current) => ({ ...current, [key]: !current[key] }));
+function SettingsView({ notify, user, profile, onSaveProfile }: { notify: (message: string) => void; user: PortalUser | null; profile: StoredProfile | null; onSaveProfile: (patch: Record<string, string | boolean>, accountPatch?: { fullName?: string; phone?: string }) => Promise<StoredProfile | null> }) {
+  const preferenceKeyMap = { email: "notifyEmail", sms: "notifySms", policy: "notifyPolicy", marketing: "notifyMarketing" } as const;
+  const [preferences, setPreferences] = useState({
+    email: profile?.profile?.notifyEmail === undefined ? true : Boolean(profile.profile.notifyEmail),
+    sms: profile?.profile?.notifySms === undefined ? true : Boolean(profile.profile.notifySms),
+    policy: profile?.profile?.notifyPolicy === undefined ? true : Boolean(profile.profile.notifyPolicy),
+    marketing: profile?.profile?.notifyMarketing === undefined ? false : Boolean(profile.profile.notifyMarketing),
+  });
+  const toggle = async (key: keyof typeof preferences) => {
+    const nextValue = !preferences[key];
+    setPreferences((current) => ({ ...current, [key]: nextValue }));
+    await onSaveProfile({ [preferenceKeyMap[key]]: nextValue });
+  };
   const initials = (profile?.fullName || user?.displayName || "Account").split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase();
   const [qrDataUrl, setQrDataUrl] = useState("");
   useEffect(() => { import("qrcode").then((QRCode) => QRCode.toDataURL(window.location.origin, { margin: 1, width: 180 }).then(setQrDataUrl)); }, []);
-  return <div className="section-view"><ViewHeading eyebrow="Account preferences" title="Settings" description="Manage your profile, security, and how InsurSuite keeps you informed." /><div className="settings-layout"><aside className="settings-nav"><button className="active"><UserRound size={17} />Profile</button><button><Bell size={17} />Notifications</button><button><LockKeyhole size={17} />Security</button><button><Gem size={17} />Plan & billing</button></aside><div className="settings-content"><Panel><PanelHeader title="Profile information" /><div className="profile-block"><span className="avatar big">{initials}</span><div><strong>{profile?.fullName || user?.displayName || "Account owner"}</strong><small>{user?.email || "Signed in account"}</small></div><form action="/auth/signout" method="post"><button className="secondary-button" type="submit">Sign out</button></form></div><form className="settings-form" onSubmit={(e) => { e.preventDefault(); notify("Profile settings saved."); }}><label>Full name<input defaultValue={profile?.fullName || user?.fullName || ""} /></label><label>Email address<input defaultValue={user?.email || ""} type="email" readOnly /></label><label>Phone number<input defaultValue={profile?.phone || ""} /></label><label>State<select defaultValue="Texas"><option>Texas</option><option>Oklahoma</option><option>Florida</option></select></label><button className="primary-button" type="submit">Save changes</button></form></Panel><Panel><PanelHeader title="Notification preferences" /><div className="preference-list">{[["email", "Email updates", "Policy, ticket, and account activity"], ["sms", "Text reminders", "Draft dates and scheduled reviews"], ["policy", "Coverage alerts", "Missing details and annual review prompts"], ["marketing", "Product news", "New InsurSuite features and offers"]].map(([key, title, detail]) => <div key={key}><span><strong>{title}</strong><small>{detail}</small></span><button className={`toggle ${preferences[key as keyof typeof preferences] ? "on" : ""}`} onClick={() => toggle(key as keyof typeof preferences)} aria-label={`Toggle ${title}`}><i /></button></div>)}</div></Panel><Panel className="mobile-install-panel">
+  const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const result = await onSaveProfile({}, { fullName: String(form.get("fullName") || ""), phone: String(form.get("phone") || "") });
+    if (result) notify("Profile settings saved.");
+  };
+  return <div className="section-view"><ViewHeading eyebrow="Account preferences" title="Settings" description="Manage your profile, security, and how InsurSuite keeps you informed." /><div className="settings-layout"><aside className="settings-nav"><button className="active"><UserRound size={17} />Profile</button><button><Bell size={17} />Notifications</button><button><LockKeyhole size={17} />Security</button><button><Gem size={17} />Plan & billing</button></aside><div className="settings-content"><Panel><PanelHeader title="Profile information" /><div className="profile-block"><span className="avatar big">{initials}</span><div><strong>{profile?.fullName || user?.displayName || "Account owner"}</strong><small>{user?.email || "Signed in account"}</small></div><form action="/auth/signout" method="post"><button className="secondary-button" type="submit">Sign out</button></form></div><form className="settings-form" onSubmit={submitProfile}><label>Full name<input name="fullName" defaultValue={profile?.fullName || user?.fullName || ""} /></label><label>Email address<input defaultValue={user?.email || ""} type="email" readOnly /></label><label>Phone number<input name="phone" defaultValue={profile?.phone || ""} /></label><label>State<select defaultValue="Texas"><option>Texas</option><option>Oklahoma</option><option>Florida</option></select></label><button className="primary-button" type="submit">Save changes</button></form></Panel><Panel><PanelHeader title="Notification preferences" /><div className="preference-list">{[["email", "Email updates", "Policy, ticket, and account activity"], ["sms", "Text reminders", "Draft dates and scheduled reviews"], ["policy", "Coverage alerts", "Missing details and annual review prompts"], ["marketing", "Product news", "New InsurSuite features and offers"]].map(([key, title, detail]) => <div key={key}><span><strong>{title}</strong><small>{detail}</small></span><button className={`toggle ${preferences[key as keyof typeof preferences] ? "on" : ""}`} onClick={() => toggle(key as keyof typeof preferences)} aria-label={`Toggle ${title}`}><i /></button></div>)}</div></Panel><Panel className="mobile-install-panel">
         <PanelHeader title="Get InsurSuite on your phone" />
         {qrDataUrl && <img src={qrDataUrl} alt="Scan to open InsurSuite on your phone" width={180} height={180} />}
         <div className="install-steps">
@@ -574,7 +590,7 @@ function SettingsView({ notify, user, profile }: { notify: (message: string) => 
       </Panel></div></div></div>;
 }
 
-function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyData, uploadedDocuments, profile, user, isSample, requests, onCreateRequest, onSaveProfile }: { active: NavKey; onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; notify: (message: string) => void; policyData: Policy[]; uploadedDocuments: PortalDocument[]; profile: StoredProfile | null; user: PortalUser | null; isSample: boolean; requests: ServiceRequest[]; onCreateRequest: (input: SupportRequestInput) => Promise<ServiceRequest | null>; onSaveProfile: (patch: Record<string, string | boolean>) => Promise<StoredProfile | null> }) {
+function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyData, uploadedDocuments, profile, user, isSample, requests, onCreateRequest, onSaveProfile }: { active: NavKey; onNavigate: (key: NavKey) => void; onPolicy: (policy: Policy) => void; onOpen: (modal: string) => void; notify: (message: string) => void; policyData: Policy[]; uploadedDocuments: PortalDocument[]; profile: StoredProfile | null; user: PortalUser | null; isSample: boolean; requests: ServiceRequest[]; onCreateRequest: (input: SupportRequestInput) => Promise<ServiceRequest | null>; onSaveProfile: (patch: Record<string, string | boolean>, accountPatch?: { fullName?: string; phone?: string }) => Promise<StoredProfile | null> }) {
   if (active === "Dashboard") return <Dashboard onNavigate={onNavigate} onPolicy={onPolicy} onOpen={onOpen} policyData={policyData} profile={profile} documents={uploadedDocuments} requests={requests} isSample={isSample} />;
   if (active === "My Policies") return <PoliciesView onPolicy={onPolicy} onOpen={onOpen} notify={notify} policyData={policyData} isSample={isSample} />;
   if (active === "Document Vault") return <DocumentVaultView onOpen={onOpen} notify={notify} uploadedDocuments={uploadedDocuments} policyData={policyData} />;
@@ -585,7 +601,7 @@ function SectionContent({ active, onNavigate, onPolicy, onOpen, notify, policyDa
   if (active === "Notifications") return <NotificationsView notify={notify} />;
   if (active === "Family & Household") return <FamilyView onOpen={onOpen} notify={notify} profile={profile} policyData={policyData} user={user} />;
   if (active === "Claims Concierge") return <ClaimsView onOpen={onOpen} notify={notify} />;
-  return <SettingsView notify={notify} user={user} profile={profile} />;
+  return <SettingsView notify={notify} user={user} profile={profile} onSaveProfile={onSaveProfile} />;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
@@ -905,14 +921,14 @@ export default function HomePage() {
     return result.request as ServiceRequest;
   };
 
-  const saveProfilePatch = async (patch: Record<string, string | boolean>) => {
+  const saveProfilePatch = async (patch: Record<string, string | boolean>, accountPatch: { fullName?: string; phone?: string } = {}) => {
     if (!storedProfile) return null;
     const response = await fetch("/api/client-profile", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        fullName: storedProfile.fullName,
-        phone: storedProfile.phone,
+        fullName: accountPatch.fullName ?? storedProfile.fullName,
+        phone: accountPatch.phone ?? storedProfile.phone,
         dateOfBirth: storedProfile.dateOfBirth,
         onboardingStatus: storedProfile.onboardingStatus || "completed",
         onboardingStep: storedProfile.onboardingStep || intakeSections.length,
