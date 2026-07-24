@@ -2,7 +2,7 @@ import { createServerSupabase } from "../../lib/supabase/server";
 import { getCurrentUser } from "../../auth";
 import { formatMoney, parseDate, parseMoney } from "../../lib/money";
 
-const POLICY_SELECT = "id, policyNumber:policy_number, policyType:policy_type, carrier, insuredName:insured_name, ownerName:owner_name, deathBenefit:death_benefit, monthlyPremium:monthly_premium, effectiveDate:effective_date, premiumDueDate:premium_due_date, beneficiaries, cashValue:cash_value, sourceFileName:source_file_name, createdAt:created_at, updatedAt:updated_at";
+const POLICY_SELECT = "id, policyNumber:policy_number, policyType:policy_type, carrier, insuredName:insured_name, ownerName:owner_name, deathBenefit:death_benefit, monthlyPremium:monthly_premium, effectiveDate:effective_date, premiumDueDate:premium_due_date, packetStatus:packet_status, beneficiaries, cashValue:cash_value, sourceFileName:source_file_name, createdAt:created_at, updatedAt:updated_at";
 
 function formatPolicy<T extends { deathBenefit: unknown; monthlyPremium: unknown; cashValue: unknown }>(policy: T) {
   return { ...policy, deathBenefit: formatMoney(policy.deathBenefit as number | null), monthlyPremium: formatMoney(policy.monthlyPremium as number | null), cashValue: formatMoney(policy.cashValue as number | null) };
