@@ -52,3 +52,4 @@ CODEX_FULL_SOURCE.md
 FILE_LIST.txt
 HANDOFF_MANIFEST.md
 supabase/.temp/
+.worktrees/
