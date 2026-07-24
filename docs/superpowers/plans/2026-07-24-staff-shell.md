@@ -129,7 +129,7 @@ if (user && pathname.startsWith("/staff") && pathname !== "/staff/login") {
 - [ ] **Step 5: Build**
 
 Run: `npm run build`
-Expected: exits 0.
+Expected: exits 0. This is the first place in the codebase `@supabase/supabase-js` runs inside middleware (Edge runtime by default) rather than an API route (Node runtime) — if the build or the manual-verify step below fails with a runtime/module error specific to the Edge environment, add `export const runtime = "nodejs";` to `middleware.ts` to force Node runtime instead.
 
 - [ ] **Step 6: Manual verify**
 
@@ -151,7 +151,7 @@ git commit -m "Route /staff traffic to a separate staff login and gate on agent_
 
 - [ ] **Step 1: Write the page**
 
-Base this closely on `app/login/page.tsx`'s structure (same `createClientSupabase()` sign-in call, same form shape) but sign-in only — no "Create account" tab, since staff accounts are granted via Manage Staff (Task 7), not self-service signup. Staff-specific copy/branding ("InsurSuite Staff", a distinct kicker like "Staff access only"). On success, redirect to `/staff` (not `/`, and no `return_to` handling needed since there's exactly one destination).
+Base this closely on `app/login/page.tsx`'s structure (same `createClientSupabase()` sign-in call, same form shape) but sign-in only — no "Create account" tab, since staff accounts are granted via Manage Staff (Task 6), not self-service signup. Staff-specific copy/branding ("InsurSuite Staff", a distinct kicker like "Staff access only"). On success, redirect to `/staff` (not `/`, and no `return_to` handling needed since there's exactly one destination).
 
 ```tsx
 "use client";
@@ -227,12 +227,14 @@ git commit -m "Add dedicated staff login page"
 
 ---
 
-### Task 4: Staff shell layout + relocated Agent Console
+### Task 4: Staff shell layout, relocated Agent Console, and client-shell cleanup
+
+This task is one unit, not independently splittable across workers — deleting `AgentConsole` from `app/page.tsx` and removing its `SectionContent` call site must land together, or the file won't build in between. Do not dispatch this task's steps to more than one parallel worker.
 
 **Files:**
 - Create: `app/staff/(shell)/layout.tsx`
 - Create: `app/staff/(shell)/page.tsx`
-- Modify: `app/page.tsx:511-` (remove `AgentConsole` — its content moves out in this task)
+- Modify: `app/page.tsx` — remove `AgentConsole` (line 511), `NavKey` type (line 65), `navItems` array (line 118), `SectionContent` branch (line 560), `agentAccess` state + its setter call (lines 744, 808), nav-filter line (934); add the `staff_access_denied` notice effect
 
 - [ ] **Step 1: Write the shell layout**
 
@@ -264,53 +266,20 @@ export default function StaffShellLayout({ children }: { children: React.ReactNo
 
 - [ ] **Step 2: Move `AgentConsole`'s content into `app/staff/(shell)/page.tsx`**
 
-Copy the current `AgentConsole` function body (`app/page.tsx:511`) into a new default-exported page component, importing `Panel`/`PanelHeader` from `../../components/shared` (relative path from `app/staff/(shell)/page.tsx`) instead of from `app/page.tsx`. Add `"use client"` at the top (the original relies on `useState`/`useEffect`). No changes to its internal logic — same `/api/agent/queue` and `/api/knowledge` calls, same JSX.
+Copy the current `AgentConsole` function body (`app/page.tsx:511`) into a new default-exported page component. It uses four shared primitives, not two — import all of them: `import { Panel, PanelHeader, ViewHeading, ticketCode } from "../../components/shared";` (relative path from `app/staff/(shell)/page.tsx`). Add `"use client"` at the top (the original relies on `useState`/`useEffect`). No changes to its internal logic — same `/api/agent/queue` and `/api/knowledge` calls, same JSX.
 
-- [ ] **Step 3: Remove `AgentConsole` from `app/page.tsx`**
+- [ ] **Step 3: Remove `AgentConsole` and everything that referenced it from `app/page.tsx`, in one pass**
 
-Delete the `AgentConsole` function definition (line 511) from `app/page.tsx` entirely — it has no more callers once Task 5 removes the `SectionContent` branch that renders it (do this deletion together with Task 5, not before, so the file isn't left in a broken intermediate state with a dangling reference — see Task 5 Step 1).
+- Delete the `AgentConsole` function definition (line 511).
+- Delete `| "Agent Console"` from the `NavKey` union type (line 65).
+- Delete `{ label: "Agent Console", icon: Headphones },` from `navItems` (line 118).
+- Delete `if (active === "Agent Console") return <AgentConsole />;` from `SectionContent` (line 560).
+- Delete `const [agentAccess, setAgentAccess] = useState(false);` (line 744) and `setAgentAccess(Boolean(result.isAgent));` (line 808) — the `client-profile` response's `isAgent` field is no longer consumed anywhere in the client shell now that middleware checks staff status directly on `/staff`. Leave the API response field itself alone.
+- Change the nav-render filter (line 934) from `{navItems.filter((item) => item.label !== "Agent Console" || agentAccess).map(...)}` to `{navItems.map(...)}`.
 
-- [ ] **Step 4: Build**
+- [ ] **Step 4: Wire the `staff_access_denied` notice toast**
 
-Run: `npm run build`
-Expected: exits 0 (after Task 5's `SectionContent` cleanup removes the last reference — if building this task in isolation before Task 5, the removed `AgentConsole` will still be referenced at `app/page.tsx:560` and fail; do Tasks 4 and 5 in the same working session before committing either, or keep `AgentConsole` in place until Task 5 removes both the function and its call site together).
-
-- [ ] **Step 5: Manual verify**
-
-Sign in as an existing staff account at `/staff/login`, confirm `/staff` shows the same queue + knowledge-base trainer content the old embedded tab used to show, and `/staff/team` link is visible in the nav (page itself built in Task 7).
-
-- [ ] **Step 6: Commit** (combined with Task 5's changes — see that task's commit step)
-
----
-
-### Task 5: Remove the embedded Agent Console tab from the client shell
-
-**Files:**
-- Modify: `app/page.tsx` — `NavKey` type (line 65), `navItems` array (line 118), `SectionContent` branch (line 560), `agentAccess` state + its setter call (lines 744, 808), nav-filter line (934)
-
-- [ ] **Step 1: Remove `"Agent Console"` from `NavKey`**
-
-Delete the `| "Agent Console"` line from the `NavKey` union type (line 65).
-
-- [ ] **Step 2: Remove the nav entry**
-
-Delete `{ label: "Agent Console", icon: Headphones },` from `navItems` (line 118).
-
-- [ ] **Step 3: Remove the `SectionContent` branch**
-
-Delete `if (active === "Agent Console") return <AgentConsole />;` (line 560). This is the point where `AgentConsole`'s deletion from `app/page.tsx` (Task 4, Step 3) becomes safe — do this step in the same pass.
-
-- [ ] **Step 4: Remove `agentAccess` state and its setter**
-
-Delete `const [agentAccess, setAgentAccess] = useState(false);` (line 744) and `setAgentAccess(Boolean(result.isAgent));` (line 808) — the `client-profile` API response's `isAgent` field is no longer consumed anywhere in the client shell (staff status is now only relevant on the `/staff` side, where middleware already checks it directly). Leave the API response field itself alone — removing it from the API is out of scope and other things may still reasonably return it.
-
-- [ ] **Step 5: Simplify the nav-render filter**
-
-Change `{navItems.filter((item) => item.label !== "Agent Console" || agentAccess).map(...)}` (line 934) to `{navItems.map(...)}` — the filter existed solely to conditionally show the now-removed Agent Console entry.
-
-- [ ] **Step 6: Wire the `staff_access_denied` notice toast**
-
-Add a `useEffect` in `HomePage` (near where `toast`/`notify` are defined) that reads the notice once on mount:
+Add a `useEffect` in `HomePage`, placed after `notify` is defined (search for its definition, around line 909 — add this effect after it, not before, to avoid a use-before-declaration issue):
 
 ```ts
 useEffect(() => {
@@ -324,18 +293,16 @@ useEffect(() => {
 }, []);
 ```
 
-(Place this after `notify` is defined, since it's referenced inside — check `notify`'s definition location and add this effect after it, not before, to avoid a use-before-declaration issue with `const`.)
-
-- [ ] **Step 7: Build**
+- [ ] **Step 5: Build**
 
 Run: `npm run build`
-Expected: exits 0, no unused-variable issues from the removed `agentAccess`/`AgentConsole`.
+Expected: exits 0, no unused-variable or undefined-identifier errors.
 
-- [ ] **Step 8: Manual verify**
+- [ ] **Step 6: Manual verify**
 
-Client dashboard sidebar no longer shows "Agent Console" for any account (staff or not). Visit `/staff` as a non-agent client (triggers Task 2's redirect) and confirm the toast "Your account doesn't have staff access." appears once, then the `?notice=` param is gone from the URL on refresh.
+Sign in as an existing staff account at `/staff/login`, confirm `/staff` shows the same queue + knowledge-base trainer content the old embedded tab used to show. Client dashboard sidebar no longer shows "Agent Console" for any account. Visit `/staff` as a non-agent client and confirm the toast "Your account doesn't have staff access." appears once, then the `?notice=` param is gone from the URL on refresh.
 
-- [ ] **Step 9: Commit** (Tasks 4 + 5 together, since Task 4 leaves the file in a temporarily-broken state until this task's Step 3)
+- [ ] **Step 7: Commit**
 
 ```bash
 git add app/page.tsx app/staff
@@ -344,7 +311,7 @@ git commit -m "Move Agent Console to the staff shell, remove it from the client 
 
 ---
 
-### Task 6: Manage Staff API
+### Task 5: Manage Staff API
 
 **Files:**
 - Create: `app/api/staff/team/route.ts`
@@ -428,7 +395,7 @@ git commit -m "Add Manage Staff API: list, grant, revoke agent_roles"
 
 ---
 
-### Task 7: Manage Staff page
+### Task 6: Manage Staff page
 
 **Files:**
 - Create: `app/staff/(shell)/team/page.tsx`
