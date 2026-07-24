@@ -24,7 +24,7 @@ No backend or schema changes: all fields already exist in the `profile` jsonb bl
 
 No `/terms` or `/privacy` route exists anywhere in the app, and the signup consent checkbox in `AccountCreation` references "portal terms" with no link. Real client PII (name, DOB, income range, beneficiary names, uploaded policy documents) is about to start flowing through the app, so a real (if simple) disclosure needs to exist before that happens.
 
-**Fix:** two new static routes, `app/terms/page.tsx` and `app/privacy/page.tsx`, styled with the existing `Panel`/`ViewHeading` components so they match the app's visual language rather than looking like an unstyled legal dump. Content is plain-English and honest, not a lawyer-drafted contract:
+**Fix:** two new static routes, `app/terms/page.tsx` and `app/privacy/page.tsx`, styled with the app's existing `.marketing-page`/`.marketing-nav` classes (the same ones `/login` already uses) so they match the app's visual language rather than looking like an unstyled legal dump. Content is plain-English and honest, not a lawyer-drafted contract:
 - **Privacy**: what's collected (name, contact info, DOB, income range, beneficiary/emergency-contact info, uploaded documents), why (so your agent can service your policies), where it lives (Supabase, access-controlled, not sold to third parties), how to request deletion (contact your agent).
 - **Terms**: this is a client portal for managing insurance policy information with your agent, not a substitute for your actual insurance contracts; acceptable use; account security responsibility (don't share your password); InsurSuite/your agency's liability is limited to the portal service itself.
 - Both pages get a footer note: "This is a plain-language summary appropriate for early access. It is not a substitute for a formal legal review." — honest about the beta status without undermining the disclosure.
@@ -38,7 +38,7 @@ No `/terms` or `/privacy` route exists anywhere in the app, and the signup conse
 No `app/error.tsx` or `app/not-found.tsx` exists, so any runtime error or bad URL currently shows Next.js's raw default screen to a real client — jarring and unpolished, and on `error.tsx` specifically, potentially leaks a raw error message/stack trace.
 
 **Fix:**
-- `app/not-found.tsx`: styled to match the app (reuse existing dark/gold visual language, `Panel` component), a short "Page not found" message, and a link back to `/` (which redirects to the dashboard or login as appropriate via existing routing).
+- `app/not-found.tsx`: styled to match the app (reuse the existing `.portal-gate`/`.gate-card`/`.gate-icon` card pattern already used for the portal's own "couldn't open your portal" error state), a short "Page not found" message, and a link back to `/` (which redirects to the dashboard or login as appropriate via existing routing).
 - `app/error.tsx`: client component error boundary (`"use client"`, receives `error`/`reset` props per Next.js convention). Shows a friendly "Something went wrong" message — never the raw `error.message` — with a "Try again" button calling `reset()` and a link back to `/`. Logs `error` to `console.error` for visibility in Vercel's runtime logs (no new monitoring service — not justified at this client count).
 
 Both live at the app root, so they apply across the whole tree including `/staff`. No nested per-route-group error/not-found files are needed at this scope.
