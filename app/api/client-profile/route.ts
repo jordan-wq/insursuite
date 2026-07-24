@@ -32,6 +32,18 @@ export async function GET() {
       .eq("user_id", user.id),
   ]);
 
+  const dueSoon = (policies || []).filter((p) => {
+    if (!p.premiumDueDate) return false;
+    const days = Math.ceil((new Date(p.premiumDueDate).getTime() - Date.now()) / 86400000);
+    return days >= 0 && days <= 14;
+  });
+  for (const policy of dueSoon) {
+    const { data: existing } = await supabase.from("notifications").select("id").eq("user_id", user.id).eq("type", "premium_due_soon").eq("related_id", policy.id).eq("read", false).maybeSingle();
+    if (!existing) {
+      await supabase.from("notifications").insert({ user_id: user.id, type: "premium_due_soon", title: "A premium is due soon", message: `${policy.carrier || "A policy"} premium is due within 14 days.`, related_id: policy.id });
+    }
+  }
+
   return Response.json({
     user,
     isAgent: await isAgent(user.id),
