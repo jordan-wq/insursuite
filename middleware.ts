@@ -19,6 +19,7 @@ function hasSupabaseConfig() {
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/staff/login" ||
     pathname.startsWith("/auth/") ||
     pathname === "/signin-with-chatgpt" ||
     pathname.startsWith("/_next/") ||
@@ -27,6 +28,10 @@ function isPublicPath(pathname: string) {
     pathname.startsWith("/globe.svg") ||
     pathname.startsWith("/window.svg")
   );
+}
+
+function loginPathFor(pathname: string) {
+  return pathname.startsWith("/staff") ? "/staff/login" : "/login";
 }
 
 export async function middleware(request: NextRequest) {
@@ -64,14 +69,14 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    loginUrl.pathname = loginPathFor(pathname);
     loginUrl.searchParams.set("return_to", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
 
   if (!user && !isPublicPath(pathname) && !pathname.startsWith("/api/")) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    loginUrl.pathname = loginPathFor(pathname);
     loginUrl.searchParams.set("return_to", `${pathname}${search}`);
     const redirect = NextResponse.redirect(loginUrl);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
@@ -87,6 +92,28 @@ export async function middleware(request: NextRequest) {
     const redirect = NextResponse.redirect(redirectUrl);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
+  }
+
+  if (user && pathname === "/staff/login") {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/staff";
+    redirectUrl.search = "";
+    const redirect = NextResponse.redirect(redirectUrl);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+  }
+
+  if (user && pathname.startsWith("/staff") && pathname !== "/staff/login") {
+    const { isAgent } = await import("./app/service-routing");
+    const allowed = await isAgent(user.id);
+    if (!allowed) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/";
+      redirectUrl.search = "?notice=staff_access_denied";
+      const redirect = NextResponse.redirect(redirectUrl);
+      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+      return redirect;
+    }
   }
 
   return response;
