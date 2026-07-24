@@ -127,6 +127,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .agent-queue p { margin:8px 0; font-size:12px; line-height:1.45; }
 .agent-queue small { color:var(--color-text-muted); font-size: 12px; text-transform:uppercase; letter-spacing:.05em; }
 .agent-queue select,.knowledge-form input,.knowledge-form textarea { width:100%; padding:9px 10px; border:1px solid #cfdbea; border-radius:7px; background:#fff; }
+.agent-queue-actions { display:flex; flex-direction:column; gap:8px; }
+.new-conversation-panel { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:9px; background:#f9fbfe; display:flex; flex-direction:column; gap:10px; }
+.new-conversation-panel > input { width:100%; padding:9px 10px; border:1px solid #cfdbea; border-radius:7px; background:#fff; }
+.client-search-results { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; }
+.client-search-results button { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:8px 10px; border:1px solid #dce5f0; border-radius:7px; background:#fff; text-align:left; }
 .agent-intake-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:10px 0; }
 .agent-intake-details div { padding:6px 8px; border-radius:6px; background:#eef4fc; }
 .agent-intake-details dt { color:#687995; font-size: 12px; text-transform:capitalize; }
