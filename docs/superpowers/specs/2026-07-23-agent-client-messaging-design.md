@@ -16,6 +16,10 @@ Today, when a client opens a service request, the assigned agent can only change
 - Not merging AI bot chat and human messages into one feed (declined — kept visibly separate).
 - No real-time/websocket delivery — same fetch-on-load pattern as the rest of the app.
 
+## Dependency
+
+This spec's client-facing unread signal relies on the `notifications` table defined in `2026-07-23-policy-enrichment-design.md`, which is not yet implemented. That table's migration must land first (or as part of the same implementation pass) — this spec is not buildable in isolation before it exists. `related_id` on that table is a generic, type-dependent pointer (not policy-specific), so an `agent_reply` notification can set `related_id` to the `service_request_id` without any further schema change.
+
 ## Data model
 
 New table, following the same shape/RLS conventions as every other client-owned table in `supabase/migrations/`:
@@ -31,11 +35,11 @@ create table public.service_request_messages (
 );
 ```
 
-RLS: clients can select/insert rows where `service_request_id` belongs to a `service_requests` row they own (`user_id = auth.uid()`) — a subquery policy, same pattern as other owner-scoped tables just expressed one level down. Agent-side reads/writes go through the existing admin (service-role) client, gated by the same `isAgent` check the queue route already uses — no new trust model, reuses what's there.
+RLS: clients can select/insert rows where `service_request_id` belongs to a `service_requests` row they own (`user_id = auth.uid()`) — a subquery policy. This is intentionally different from the direct `auth.uid() = user_id` policies on every other table in `0001_init.sql`; it has to be, since a message row has no `user_id` column of its own. Not a pattern to "simplify" back to the direct form. Agent-side reads/writes go through the existing admin (service-role) client, gated by the same `isAgent` check the queue route already uses — no new trust model, reuses what's there.
 
 Two small extensions to `service_requests` behavior (no schema change, both already exist):
 - `unread_by_agent` — already flips true on request creation; extend so it also flips true whenever a *client* posts a new message on an existing request (agent needs to know to look again).
-- Client-side unread signal reuses the real `notifications` table from the policy-enrichment spec — a new agent message inserts a `type: "agent_reply"` notification for the client, same as packet-delivered/premium-due-soon. No new client-side "unread" column needed.
+- Client-side unread signal reuses the real `notifications` table from the policy-enrichment spec (see Dependency, above) — a new agent message inserts a `type: "agent_reply", related_id: <service_request_id>` notification for the client, same mechanism as packet-delivered/premium-due-soon. No new client-side "unread" column needed.
 
 ## Client side (`SupportView`)
 
@@ -52,7 +56,11 @@ Two small extensions to `service_requests` behavior (no schema change, both alre
 - `GET /api/service-requests/[id]/messages`, `POST /api/service-requests/[id]/messages` — client-scoped (own request only, via RLS + explicit ownership check).
 - `GET /api/agent/requests/[id]/messages`, `POST /api/agent/requests/[id]/messages` — agent-scoped (admin client, `isAgent` + assigned-to check), mirrors the client routes but through the agent trust boundary, same split already used for `/api/service-requests` vs `/api/agent/queue`.
 - `GET /api/agent/clients?query=` — client search for starting a new conversation.
-- `POST /api/agent/requests` — agent-initiated new request (client id, request type, first message).
+- `POST /api/agent/requests` — agent-initiated new request (client id, request type, first message). `priority`/`request_data` take the same table defaults client-created requests normally resolve to (`"normal"` / `{}`). One explicit override: `unread_by_agent: false` on insert — the table default is `true`, which is right for a client-created request (agent needs to look) but wrong here, since the assigned agent is also the author and shouldn't see their own new conversation flagged as needing their own attention.
+
+## Phasing note
+
+Two separable units bolted into one spec: (1) replying on a request the client already opened — one table, two route pairs, thread UI — and (2) agent-initiated new conversations — client search endpoint, new-request UI, new-request endpoint. Both are explicit goals here, but a plan may reasonably sequence (1) before (2) rather than land them as a single change.
 
 ## Verification
 
