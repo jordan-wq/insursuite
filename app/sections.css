@@ -127,6 +127,7 @@
 .chat-panel, .support-chat-main { min-height:min(650px,calc(100dvh - 190px)); }
 .message-thread, .support-thread, .concierge-thread { scroll-behavior:smooth; }
 .chat-composer, .support-composer, .concierge-composer { border-top:1px solid #e0e9f2; }
+.request-thread { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; max-height: 320px; overflow-y: auto; }
 .support-action-bar button, .preloaded-options button, .topic-grid>button { transition:background-color .18s var(--ease-out), border-color .18s var(--ease-out), box-shadow .18s var(--ease-out), transform .18s var(--ease-out); }
 .support-action-bar button:active, .preloaded-options button:active, .topic-grid>button:active { transform:scale(.985); }
 .review-metric-grid { align-items:stretch; }
