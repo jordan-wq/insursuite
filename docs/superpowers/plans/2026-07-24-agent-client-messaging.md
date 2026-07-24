@@ -283,7 +283,7 @@ git commit -m "Add agent-side messaging, client search, and agent-initiated requ
 
 - [ ] **Step 1: Fix the existing broken ticket-id display while touching this code**
 
-The `merged-ticket-list` item currently renders `IS-{1000 + request.id}` twice (in the visible label and in the `notify()` call on click) — `request.id` is a uuid string, so `1000 + request.id` is broken string concatenation (a leftover from before this codebase's ids were migrated to uuid; `ticketCode()` was fixed at other call sites earlier but these two were missed). Replace both occurrences with `ticketCode(request.id)`, matching every other ticket-number display in this file.
+The `merged-ticket-list` item currently renders the broken `1000 + request.id` expression in **three** places on the same `<article>`: the visible `<small>IS-{1000 + request.id}...</small>` label, the button's `aria-label={\`Open IS-${1000 + request.id}\`}`, and the `notify(...)` call text on click — `request.id` is a uuid string, so `1000 + request.id` is broken string concatenation (a leftover from before this codebase's ids were migrated to uuid; `ticketCode()` was fixed at other call sites earlier but these three were missed). Replace the visible label and the `aria-label` with `ticketCode(request.id)` now. The `notify(...)` call is handled by Step 2 below, which replaces the whole `onClick` (and therefore that broken text) with `openThread(request.id)` — so by the end of this task all three are gone, not just two.
 
 - [ ] **Step 2: Make ticket rows open a real thread instead of a `notify()` placeholder**
 
@@ -334,6 +334,14 @@ Change the ticket row's `onClick` from `() => notify(...)` to `() => openThread(
 
 This is deliberately visually distinct from `ConciergeChat`'s bot-only chrome (no "typing" indicator, explicit "Agent"/"You" labels, no quick-reply chips) per the spec's requirement to never blur AI vs. human.
 
+- [ ] **Step 2b: Add minimal CSS for the new wrapper classes**
+
+`.request-thread-panel`/`.request-thread` have no existing styling (unlike the `support-bubble`/`support-composer` classes reused inside them, which are already styled). Add to `app/sections.css`:
+
+```css
+.request-thread { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; max-height: 320px; overflow-y: auto; }
+```
+
 - [ ] **Step 3: Build**
 
 Run: `npm run build`
@@ -359,7 +367,7 @@ git commit -m "Add real per-request message thread to Support Center"
 
 - [ ] **Step 1: Add a reply affordance to each queue item**
 
-Add the same `openRequestId`/`threadMessages`/`threadDraft`/`threadSending` state and `openThread`/`sendThreadMessage` functions from Task 4, but pointed at the agent-side routes: `/api/agent/requests/${id}/messages` for both GET and POST. Add a "Reply" button on each queue `<article>` that calls `openThread(item.id)`, and render the same thread-panel pattern (agent messages labeled "You", client messages labeled with `item.clientName`) below the queue list when `openRequestId` is set.
+Add the same `openRequestId`/`threadMessages`/`threadDraft`/`threadSending` state and `openThread`/`sendThreadMessage` functions from Task 4, but pointed at the agent-side routes: `/api/agent/requests/${id}/messages` for both GET and POST. Add a "Reply" button on each queue `<article>` that calls `openThread(item.id)`, and render the same thread-panel pattern (agent messages labeled "You", client messages labeled with `item.clientName`) below the queue list when `openRequestId` is set. This reused pattern's composer button uses the `Send` icon — `app/staff/(shell)/page.tsx` doesn't import it yet (the staff-shell plan's Task 4 only imports `Panel, PanelHeader, ViewHeading, ticketCode` from `lucide-react`/shared, not `Send`), so add `import { Send } from "lucide-react";` to this file's imports as part of this step, or the build fails on an undefined identifier.
 
 - [ ] **Step 2: Add "Start a conversation"**
 
