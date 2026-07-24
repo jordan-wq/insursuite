@@ -84,7 +84,9 @@ git commit -m "Add premium date, packet status, and notifications table"
 - Modify: `app/page.tsx:81-92` (`ExtractedPolicy` type)
 - Modify: `app/page.tsx:193-207` (`structurePolicyText`)
 - Modify: `app/page.tsx` scan-review form (search for `updateExtracted("effectiveDate"` — the review form field for effective date) to add a matching field for premium due date
+- Modify: `app/page.tsx:852` (`saveScannedPolicy`'s optimistic `newPolicy` object)
 - Modify: `app/api/policies/route.ts` (insert/upsert payload)
+- Modify: `app/api/client-profile/route.ts` (its own separate `POLICY_SELECT` constant — **this is the route the client actually calls to load policy data**; `/api/policies` is not fetched from `app/page.tsx` at all, only used for saving)
 
 - [ ] **Step 1: Add the field to `ExtractedPolicy` and extraction regex**
 
@@ -114,16 +116,24 @@ Find where `saveScannedPolicy` (or the fetch call to `/api/policies`) builds its
 
 In `app/api/policies/route.ts`, add to the destructured/read body: `premiumDueDate`, and to the upsert values object: `premium_due_date: parseDate(body.premiumDueDate)` (using the existing `parseDate` import from `app/lib/money.ts`). Add `premiumDueDate:premium_due_date` to `POLICY_SELECT` and to the response formatting (no money formatting needed — dates pass through as-is, matching how `effectiveDate` is already handled).
 
-- [ ] **Step 5: Build**
+- [ ] **Step 5: Add it to `app/api/client-profile/route.ts` too — this is the route the client actually loads policy data from**
+
+`app/page.tsx` never calls `GET /api/policies` — every policy shown on Dashboard/My Policies comes from `GET /api/client-profile`, which has its own separate `POLICY_SELECT` constant (not the same one edited in Step 4). Add `premiumDueDate:premium_due_date` to that route's `POLICY_SELECT` as well, or Task 4's countdown chip and Task 10's due-soon trigger will silently never see a value.
+
+- [ ] **Step 6: Carry it through the optimistic scan-save update**
+
+In `saveScannedPolicy` (`app/page.tsx:852`), the local `newPolicy` object used to optimistically update UI state before the next reload doesn't currently include a premium-date field — add `premiumDueDate: extractedPolicy.premiumDueDate` to it so the countdown chip (Task 4) appears immediately after saving a scan, not only after a full page reload.
+
+- [ ] **Step 7: Build**
 
 Run: `npm run build`
 Expected: exits 0, no TypeScript errors.
 
-- [ ] **Step 6: Manual verify**
+- [ ] **Step 8: Manual verify**
 
-In the browser preview, scan a sample policy document (or use the demo scan flow), confirm the "Premium due date" field appears in the review form, save, and confirm `GET /api/policies` returns the value.
+In the browser preview, scan a sample policy document (or use the demo scan flow), confirm the "Premium due date" field appears in the review form, save, and confirm the saved value is visible after reloading the dashboard (via `client-profile`, not `/api/policies`).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add app/page.tsx app/api/policies/route.ts
@@ -167,6 +177,8 @@ Find the policy row JSX (search `className="policy-row"`). Inside the row, near 
 
 (Compute the label once into a local variable inside the `.map()` callback rather than calling the helper twice — clean this up during implementation, don't literally ship the duplicate call above.)
 
+Add the same chip to `PoliciesView`'s `large-policy-card` list (~line 397) — My Policies is the primary browsing view for saved policies, not just the Dashboard summary row.
+
 - [ ] **Step 4: Add chip styling**
 
 In `app/sections.css`, add:
@@ -192,7 +204,7 @@ git commit -m "Show premium due date countdown on policy rows"
 
 **Files:**
 - Create: `app/carriers.ts`
-- Modify: `app/page.tsx` (policy row icon, policy detail modal, document row)
+- Modify: `app/page.tsx` — all three `policy-icon` occurrences (Dashboard's `policy-row` at line ~324, `PoliciesView`'s `large-policy-card` list at line ~397, and the policy detail modal hero at line ~956), plus `DocumentVaultView`'s document row
 
 - [ ] **Step 1: Create the directory module**
 
@@ -231,9 +243,9 @@ function CarrierBadge({ carrier, isSample, size = 34 }: { carrier?: string; isSa
 
 Import `lookupCarrier` from `./carriers` at the top of `app/page.tsx`.
 
-- [ ] **Step 3: Use it on the policy row**
+- [ ] **Step 3: Use it everywhere a policy icon renders**
 
-Find the existing `<span className={\`policy-icon ${policy.color}\`}><policy.icon size={24} /></span>`-style rendering in the policy row and detail modal (there are two spots — the list row and the detail modal hero). Replace the icon rendering with `<CarrierBadge carrier={policy.carrier} isSample={policy.isSample} />`, keeping the existing wrapper `<span className={...}>` classes so layout/spacing is unaffected — swap only the inner icon for the badge.
+Find the existing `<span className={\`policy-icon ${policy.color}\`}><policy.icon size={24} /></span>`-style rendering. There are **three** occurrences, all needing the same treatment: Dashboard's `policy-row` (~line 324), `PoliciesView`'s `large-policy-card` list (~line 397), and the policy detail modal hero (~line 956, uses `selectedPolicy` instead of `policy`). In each, replace the inner icon rendering with `<CarrierBadge carrier={policy.carrier} isSample={policy.isSample} />` (or `selectedPolicy.carrier`/`selectedPolicy.isSample` in the modal), keeping the existing wrapper `<span className={...}>` classes so layout/spacing is unaffected — swap only the inner icon for the badge. Also add a small `<CarrierBadge>` (size 20-24) to `DocumentVaultView`'s document row where a document has a linked `policyNumber` matching a real policy's carrier — pass the carrier looked up from the matching policy in `uploadedDocuments`'s parent scope (`persistentDocuments`/`policyData`), not the document row itself, since documents don't carry a `carrier` field directly.
 
 - [ ] **Step 4: Add a "Visit [Carrier]" link in the policy detail modal**
 
@@ -373,7 +385,7 @@ const updatePacketStatus = async (policyId: string, clientId: string, packetStat
 };
 ```
 
-This requires the queue items to carry the client's `user_id`, not just `clientName` — confirm `REQUEST_SELECT` in `app/api/agent/queue/route.ts` already includes `userId:user_id` (it does, verified in the existing route). Add a clickable client name (`onClick={() => toggleClient(item.userId)}`) and, when `expandedClient === item.userId`, render `clientPolicies[item.userId]?.map(...)` as a small list with a `<select>` per policy (options: Not Sent / Sent / Delivered) calling `updatePacketStatus`.
+This requires the queue items to carry the client's `user_id`, not just `clientName` — the API already returns it (`REQUEST_SELECT` in `app/api/agent/queue/route.ts` includes `userId:user_id`), but the `QueueItem` type in `AgentConsole` (`app/page.tsx:512`, `ServiceRequest & { clientName: string; unreadByAgent: boolean; requestData?: ... }`) does not declare a `userId` field — `ServiceRequest` itself has none either. Add `userId: string;` to the `QueueItem` type intersection first, or `item.userId` fails the build. Then add a clickable client name (`onClick={() => toggleClient(item.userId)}`) and, when `expandedClient === item.userId`, render `clientPolicies[item.userId]?.map(...)` as a small list with a `<select>` per policy (options: Not Sent / Sent / Delivered) calling `updatePacketStatus`.
 
 - [ ] **Step 4: Build, then manually verify**: as a staff account, expand a client with saved policies, change packet status to Delivered, then sign in as that client and confirm a real notification appears (this ties into Task 8/9 below — if those aren't done yet, verify via a direct query against the `notifications` table instead).
 
@@ -550,7 +562,7 @@ Expected: adds two lines to `package.json` dependencies/devDependencies, updates
 
 - [ ] **Step 2: Add the QR panel to `SettingsView`**
 
-Add to `SettingsView` (import `QRCode` from `"qrcode"` at the top of `app/page.tsx`):
+Add to `SettingsView`, using a dynamic `import("qrcode")` inside the effect (consistent with how this file already lazy-loads `tesseract.js`/`pdfjs-dist` — no static top-level import of `qrcode` needed):
 
 ```tsx
 const [qrDataUrl, setQrDataUrl] = useState("");
