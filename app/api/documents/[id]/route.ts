@@ -23,7 +23,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { data: blob, error } = await supabase.storage.from("documents").download(document.storageKey);
   if (error || !blob) return Response.json({ error: "Stored file not found" }, { status: 404 });
 
-  const disposition = `${download ? "attachment" : "inline"}; filename="${document.fileName.replace(/"/g, "")}"`;
+  const safeFileName = document.fileName.replace(/[\x00-\x1f\x7f"]/g, "");
+  const disposition = `${download ? "attachment" : "inline"}; filename="${safeFileName}"`;
   return new Response(blob, {
     headers: {
       "content-type": document.contentType || "application/octet-stream",

@@ -10,14 +10,17 @@ export type PortalUser = {
 };
 
 export async function getCurrentUser(): Promise<PortalUser | null> {
-  const supabaseUser = await getSupabaseUser();
-  if (supabaseUser) return supabaseUser;
+  // Fail closed: once Supabase is configured (any real deployment), the
+  // only source of truth for identity is a real session -- never fall back
+  // to a synthetic user just because a request happens to be unauthenticated.
+  // The local-dev identity only exists for running this app with no
+  // Supabase project configured at all, and never in production.
+  if (hasSupabaseConfig()) return getSupabaseUser();
+  if (process.env.NODE_ENV === "production") return null;
   return getLocalDevUser();
 }
 
-function getLocalDevUser(): PortalUser | null {
-  if (process.env.NODE_ENV === "production" && isAuthRequired()) return null;
-
+function getLocalDevUser(): PortalUser {
   const email = process.env.LOCAL_DEV_USER_EMAIL || "local.client@insursuite.test";
   const fullName = process.env.LOCAL_DEV_USER_NAME || "Local Client";
   return {
@@ -29,8 +32,6 @@ function getLocalDevUser(): PortalUser | null {
 }
 
 async function getSupabaseUser(): Promise<PortalUser | null> {
-  if (!hasSupabaseConfig()) return null;
-
   let user: {
     id: string;
     email?: string;
@@ -57,10 +58,6 @@ async function getSupabaseUser(): Promise<PortalUser | null> {
     email: user.email,
     fullName,
   };
-}
-
-function isAuthRequired() {
-  return process.env.INSURSUITE_REQUIRE_AUTH === "true";
 }
 
 export async function requireCurrentUser(returnTo: string): Promise<PortalUser> {
