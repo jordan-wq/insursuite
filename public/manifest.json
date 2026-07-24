@@ -1,0 +1,9 @@
+{
+  "name": "InsurSuite",
+  "short_name": "InsurSuite",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1767ef",
+  "background_color": "#eef4f8",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
