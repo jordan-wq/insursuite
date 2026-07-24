@@ -422,6 +422,15 @@ body { color:var(--color-text); background:var(--color-page); font-size:var(--te
 .product-grid b { display:block; height:100%; border-radius:inherit; background:#1d9b5a; }
 .product-grid .wide small,.product-grid .wide p { color:#d9e9f7; }
 .product-grid .wide strong { color:#fff; font-size:22px; }
+.legal-content { max-width:720px; margin:0 auto; padding:clamp(38px,6vw,72px) clamp(20px,5vw,72px) 96px; color:#334259; }
+.legal-content h1 { margin:0 0 6px; color:#081831; font-size:clamp(32px,5vw,44px); letter-spacing:-1px; }
+.legal-content h2 { margin:34px 0 10px; color:#132945; font-size:20px; letter-spacing:-.3px; }
+.legal-content p { margin:0 0 4px; line-height:1.7; font-size:15px; }
+.legal-updated { color:#697890; font-size:13px; margin-bottom:28px; }
+.legal-note { margin-top:36px; padding-top:20px; border-top:1px solid rgba(204,216,230,.72); color:#697890; font-size:13px; }
+.marketing-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:20px clamp(20px,5vw,72px); border-top:1px solid rgba(204,216,230,.72); color:#697890; font-size:12px; }
+.marketing-footer a { margin-left:16px; color:#40536e; text-decoration:none; }
+.marketing-footer a:hover { color:#174fae; }
 .mission-band { margin:0 clamp(20px,5vw,72px); padding:clamp(36px,6vw,70px); border-radius:30px; color:#fff; background:linear-gradient(135deg,#102a4c,#286293); box-shadow:0 24px 70px rgba(22,55,90,.18); }
 .mission-band span,.manifesto-section > div:first-child span,.platform-heading span { color:#9fc8ef; font-size:12px; font-weight:850; }
 .mission-band h2 { max-width:1050px; margin:12px 0 16px; font-size:clamp(30px,4.6vw,56px); line-height:1.02; letter-spacing:-1px; }
