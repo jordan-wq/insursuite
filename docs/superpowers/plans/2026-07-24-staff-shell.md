@@ -133,7 +133,7 @@ Expected: exits 0. This is the first place in the codebase `@supabase/supabase-j
 
 - [ ] **Step 6: Manual verify**
 
-In the browser preview: visit `/staff` while signed out → land on `/staff/login`, not `/login`. Visit `/staff` while signed in as a non-agent client → redirected to `/?notice=staff_access_denied`. (The toast for that notice isn't wired yet — Task 5 does that — for now just confirm the redirect and query param land correctly.)
+In the browser preview: visit `/staff` while signed out → land on `/staff/login`, not `/login`. Visit `/staff` while signed in as a non-agent client → redirected to `/?notice=staff_access_denied`. (The toast for that notice isn't wired yet — Task 4 does that — for now just confirm the redirect and query param land correctly.)
 
 - [ ] **Step 7: Commit**
 
@@ -266,7 +266,14 @@ export default function StaffShellLayout({ children }: { children: React.ReactNo
 
 - [ ] **Step 2: Move `AgentConsole`'s content into `app/staff/(shell)/page.tsx`**
 
-Copy the current `AgentConsole` function body (`app/page.tsx:511`) into a new default-exported page component. It uses four shared primitives, not two — import all of them: `import { Panel, PanelHeader, ViewHeading, ticketCode } from "../../components/shared";` (relative path from `app/staff/(shell)/page.tsx`). Add `"use client"` at the top (the original relies on `useState`/`useEffect`). No changes to its internal logic — same `/api/agent/queue` and `/api/knowledge` calls, same JSX.
+Copy the current `AgentConsole` function body (`app/page.tsx:511-520`) into a new default-exported page component. Read it closely first — it references several identifiers that live outside its own body and all need to travel with it:
+
+- Shared primitives (from Task 1): `Panel`, `PanelHeader`, `ViewHeading`, `ticketCode` — `import { Panel, PanelHeader, ViewHeading, ticketCode } from "../../components/shared";`
+- `ServiceRequest` — a **local, non-exported type** at `app/page.tsx:99` (used in `type QueueItem = ServiceRequest & {...}`), not touched by Task 1's extraction and not exported anywhere else in the codebase. Add `export` to `type ServiceRequest = {...}` in `app/page.tsx` and import it: `import type { ServiceRequest } from "../../page";` — or, to avoid importing from the client-shell page at all, redeclare the same shape locally in the new file (simpler, avoids a cross-shell dependency; pick one approach and use it consistently, don't do both).
+- React: `import { useState, useEffect, type FormEvent } from "react";` (used for `useState`/`useEffect` and the form submit handler's event type — write it as `FormEvent<HTMLFormElement>`, not `React.FormEvent<HTMLFormElement>`, to match the explicit named import instead of a default `React` import).
+- `CheckCircle2` from `"lucide-react"` (used in the "Queue is clear" empty state).
+
+Add `"use client"` at the very top of the file. No changes to the component's internal logic — same `/api/agent/queue` and `/api/knowledge` calls, same JSX.
 
 - [ ] **Step 3: Remove `AgentConsole` and everything that referenced it from `app/page.tsx`, in one pass**
 
