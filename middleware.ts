@@ -20,6 +20,8 @@ function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
     pathname === "/staff/login" ||
+    pathname === "/terms" ||
+    pathname === "/privacy" ||
     pathname.startsWith("/auth/") ||
     pathname === "/signin-with-chatgpt" ||
     pathname.startsWith("/_next/") ||

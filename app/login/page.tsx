@@ -208,6 +208,11 @@ export default function LoginPage() {
           </Suspense>
         </div>
       </section>
+
+      <footer className="marketing-footer">
+        <span>© 2026 InsurSuite</span>
+        <div><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link></div>
+      </footer>
     </main>
   );
 }
