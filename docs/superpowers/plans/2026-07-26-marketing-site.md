@@ -233,15 +233,24 @@ export function MarketingFooter() {
 
 Notes: `Menu`/`X`/`ShieldCheck` are all standard `lucide-react` icons (the package is already a dependency, `ShieldCheck` is already used throughout this codebase). `NAV_LINKS` is defined once and reused by both the nav and the footer, so there's one list to update if a page is ever added/renamed. `MarketingNav` is `"use client"` because it needs local state for the mobile menu toggle — `MarketingFooter` doesn't need state but lives in the same file since the two are always used together and share `NAV_LINKS`.
 
-- [ ] **Step 2: Fix an existing rule that would otherwise break the mobile toggle**
+- [ ] **Step 2: Fix two existing rules that would otherwise break the mobile toggle**
 
-**Important — pre-existing conflict:** `app/globals.css` line 392 has `.marketing-nav > div:last-child { display:flex; align-items:center; gap:8px; }`. In the new markup, `.marketing-nav-body` IS `.marketing-nav`'s last-child `<div>`, so this old rule also matches it — and at specificity (0,2,1) it beats the new mobile media-query rule's `display:none` at (0,1,0), meaning the nav body would stay visibly `flex` at every viewport width and the hamburger toggle would do nothing. Fix the old rule so it no longer matches the new element — change line 392 to:
+**Important — pre-existing conflict #1:** `app/globals.css` line 392 has `.marketing-nav > div:last-child { display:flex; align-items:center; gap:8px; }`. In the new markup, `.marketing-nav-body` IS `.marketing-nav`'s last-child `<div>`, so this old rule also matches it — and at specificity (0,2,1) it beats the new mobile media-query rule's `display:none` at (0,1,0), meaning the nav body would stay visibly `flex` at every viewport width and the hamburger toggle would do nothing. Fix the old rule so it no longer matches the new element — change line 392 to:
 
 ```css
 .marketing-nav > div:last-child:not(.marketing-nav-body) { display:flex; align-items:center; gap:8px; }
 ```
 
-This is a one-word-added change (`:not(.marketing-nav-body)`) — it keeps the old rule working for anything else that might rely on it (nothing else currently does, per a check of the codebase, but scoping it this way is safer than deleting it outright) while letting the new nav's own CSS take over for `.marketing-nav-body`.
+**Important — pre-existing conflict #2:** the same problem recurs inside the existing `@media (max-width: 680px)` block (lines 476-479 or thereabouts — search for `@media (max-width: 680px)`), which has its own leftover nav rules from before this component existed:
+
+```css
+@media (max-width: 680px) {
+  .marketing-nav { position:relative; align-items:flex-start; flex-direction:column; }
+  .marketing-nav > div:last-child { width:100%; overflow-x:auto; padding-bottom:2px; }
+  ...
+```
+
+These two lines were written for the *old* nav structure (brand + one plain link row that stacked and scrolled horizontally). They're now redundant with — and conflict with — the new Step 3 rules below, which already fully take over mobile nav layout at ≤860px (a range that includes everything ≤680px): `.marketing-nav > div:last-child` here would again match `.marketing-nav-body` and force `width:100%; overflow-x:auto; padding-bottom:2px` onto the dropdown regardless of the new rules, and `.marketing-nav { flex-direction:column }` would stack the logo above the hamburger button instead of keeping them on one row. **Delete both of these two lines** from the `@media (max-width: 680px)` block entirely — don't just scope them, remove them, since the new ≤860px block in Step 3 is now the single source of truth for mobile nav layout and these are pure leftover duplication. Leave every other rule in that same `@media (max-width: 680px)` block untouched (the hero/product-grid/trust-strip rules there are unrelated to the nav and still needed).
 
 - [ ] **Step 3: Add CSS for the two login buttons and the mobile menu toggle**
 
