@@ -1,28 +1,30 @@
-# InsurSuite — Claude Code guide
+@AGENTS.md
 
-Also read `AGENTS.md` in this same directory — it has the product overview, security/data rules, and insurance-safety rules that apply to every change. This file covers architecture, workflow conventions, and current project state that AGENTS.md doesn't.
+## Claude Code
 
-## What this is
+Everything below is additional context for Claude Code specifically — architecture, workflow conventions, and current project state that `AGENTS.md` (imported above) doesn't cover. `AGENTS.md` already has the product overview and the security/data/insurance-safety rules; this file doesn't repeat them.
+
+### What this is
 
 Insurance client portal. Next.js 16 (App Router, Turbopack), React 19, TypeScript, Supabase (Auth/Postgres/Storage). Deployed on Vercel from `github.com/jordan-wq/insursuite`. There is **no unit-test framework** — `npm run build` (type-check + static generation) is the only verification convention. Don't add a test framework unasked.
 
-## Two separate apps in one repo
+### Two separate apps in one repo
 
 - **Client portal** — `/`, gated by a normal Supabase session. Almost the entire UI lives in one dense file, `app/page.tsx` (thousands of lines, minimal whitespace, inline JSX). This is the established style here — don't unilaterally split it into smaller files or "clean up" formatting; only touch what a task requires. Shared pieces that *were* worth extracting live in `app/components/shared.tsx` (`Panel`, `PanelHeader`, `ViewHeading`, `ticketCode`).
 - **Staff/agent shell** — `/staff`, its own login (`app/staff/login/page.tsx`) and its own layout (`app/staff/(shell)/layout.tsx`), gated separately by membership in the `agent_roles` table (`app/service-routing.ts`'s `isAgent()`), not by any client-side role flag. `middleware.ts` is what routes `/staff/*` traffic to the staff login instead of the client login — check `isPublicPath()`/`loginPathFor()` there before adding any new top-level route, or it'll either wrongly force a login redirect or wrongly bypass one.
 
-## Auth and the client/agent trust boundary
+### Auth and the client/agent trust boundary
 
 - `app/auth.ts`'s `getCurrentUser()` is **fail-closed**: if Supabase is configured (any real deployment) and there's no real session, it returns `null` — it never falls back to a synthetic user. The local-dev synthetic user only exists when Supabase isn't configured at all, and never in production. Don't reintroduce a fallback-to-fake-user path.
 - Two Supabase clients: `lib/supabase/server.ts` (session-scoped, RLS-enforced — use this for anything client-facing) and `lib/supabase/admin.ts` (service-role, **bypasses RLS**). The admin client must only be touched after an explicit `isAgent(user.id)` check, and every agent-facing route that looks up a specific client's data must also verify that client is actually assigned to that agent (see `isAssignedToAgent()` in `app/api/agent/policies/route.ts` for the pattern) — this is the IDOR guard this codebase relies on. Don't add a new agent route that queries by a client-supplied ID without this check.
 - Profile data shape gotcha: `StoredProfile` has `fullName`/`phone`/`dateOfBirth` at the top level, but everything else collected during onboarding (beneficiaries, emergency contact, income, goals, etc.) lives one level deeper in `StoredProfile.profile` (a jsonb blob filtered through `sanitizeProfile()`'s allow-list in `app/profile-fields.ts`). Reading `profile.primaryBeneficiary` instead of `profile.profile.primaryBeneficiary` is a real mistake that's been made in this codebase before — double-check which level a field lives at.
 - `saveProfilePatch` (`app/page.tsx`) takes `(patch, accountPatch?)` — `patch` merges into the nested `profile` jsonb, `accountPatch` (optional, `{fullName?, phone?}`) overrides the top-level fields. It always POSTs to `/api/client-profile` (that route has no PATCH handler, only GET/POST).
 
-## Feature backlog convention
+### Feature backlog convention
 
 AI Assistant, Coverage Review, and Claims Concierge were deliberately pulled from `navItems` (not deleted) — the code still exists but isn't reachable from the nav. If asked to revive one, look for the existing component before rebuilding it.
 
-## Workflow: how work gets planned and shipped here
+### Workflow: how work gets planned and shipped here
 
 This project follows the `superpowers` skill flow for anything beyond a trivial fix:
 1. **Brainstorm** → design doc in `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`, reviewed by a spec-document-reviewer subagent before moving on.
@@ -31,7 +33,7 @@ This project follows the `superpowers` skill flow for anything beyond a trivial 
 
 Check `docs/superpowers/specs/` and `docs/superpowers/plans/` for prior art before starting something that might already be designed.
 
-## Current state (as of 2026-07-26)
+### Current state (as of 2026-07-26)
 
 - Cloudflare/D1/R2/OpenAI-Sites migration to Vercel + Supabase: **done**.
 - Policy enrichment (premium due dates, carrier logo directory, packet-delivery notifications), the staff shell + Manage Staff screen, and agent↔client messaging: **done**, all merged to `main`.
