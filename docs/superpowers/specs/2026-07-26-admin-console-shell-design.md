@@ -24,7 +24,7 @@ This does **not** touch the staff login page (`/staff/login`) — that's a separ
 
 ## Deliberate access-control change
 
-Today, per-client reads (`/api/agent/policies`) are gated by `isAssignedToAgent(clientId, agentId)` — an agent can only see a client who has a `service_requests` row assigned to them. A full client directory means any staff member can look up *any* client's record, not just their assigned ones. **This replaces `isAssignedToAgent` with a plain `isAgent(user.id)` check on client-data read paths.** This is consistent with the already-flat trust model (any staff account can already grant/revoke other staff — see the 2026-07-24 spec's non-goals) — it is a deliberate widening, confirmed with the user during brainstorming, not an incidental loosening. Write paths (policy packet-status updates, replies, claim/reassign) keep their own explicit checks as described below; this change is about **read** access only.
+Today, per-client reads and the packet-status write (`/api/agent/policies` `GET` and `PATCH`) are both gated by the same `isAssignedToAgent(clientId, agentId)` helper — an agent can only see or update a client who has a `service_requests` row assigned to them. A full client directory, plus a Conversations page where any staff member can open any client's expanded policy panel from a conversation they don't personally own, means both the read and the write need to widen together: **`isAssignedToAgent` is removed entirely from `/api/agent/policies` (`GET` and `PATCH` both), replaced with a plain `isAgent(user.id)` check.** This is consistent with the already-flat trust model (any staff account can already grant/revoke other staff — see the 2026-07-24 spec's non-goals) — it is a deliberate widening, confirmed with the user during brainstorming. Replies and claim/reassign get their own equivalent relaxation, described below, for the same reason: once a conversation is visible/actionable by any staff member, every write path reachable from that page has to be too, or the UI silently fails for anyone who isn't the original assignee.
 
 ## Routing & IA
 
@@ -53,6 +53,8 @@ New route tree under `app/staff/(shell)/`:
 
 Page UI: same list-plus-side-thread-panel interaction the current Queue page already has (`app/staff/(shell)/page.tsx` today), moved to `app/staff/(shell)/conversations/page.tsx`, with an added "Assigned to" column/badge and a reassign control (dropdown of staff, sourced from `/api/staff/team`) next to the existing status `<select>`. "Start a conversation" panel and the client search it uses (`/api/agent/clients`) carry over unchanged.
 
+`updatePacketStatus` (carried over from today's page, `app/staff/(shell)/page.tsx` lines 38-41) calls `fetch(...)` and applies the optimistic local-state update unconditionally, without checking `response.ok` — a pre-existing latent bug where a failed write still shows as succeeded. Since this spec removes the guard that used to make that PATCH fail for legitimate reasons (unassigned client), the remaining failure modes are real errors (network, bad id), and the silent-failure UI becomes more likely to hide an actual problem now that the page is used team-wide. Fix it while this file is already being touched: only apply the local-state update when `response.ok`, otherwise leave the prior value and surface a brief inline error.
+
 **Realtime:** the Conversations page subscribes (via `createClientSupabase()`, the session-scoped browser client — never the admin client) to Postgres changes on `service_requests` and `service_request_messages`, scoped by nothing beyond RLS (see migration below) since every staff member should see every row. On any change event, refetch the affected slice (or the whole list — simplicity over micro-optimization at this scale) rather than trying to hand-patch local state from the raw payload. If the realtime channel disconnects, fall back silently to the existing fetch-on-mount/fetch-after-action behavior — the page must not be broken when offline or when Realtime is misconfigured, just less live.
 
 ## Clients directory + detail
@@ -63,7 +65,7 @@ Directory columns: name, email, onboarding status, joined date. Row click → `/
 
 `GET /api/agent/clients/[id]` (new): `isAgent`-gated (not assignment-gated, per the access-control change above). Returns:
 - Profile: same shape `client-profile` GET already returns for the client themself (top-level fields + the sanitized `profile` jsonb), reusing `sanitizeProfile()`'s existing allow-list — no new fields exposed.
-- Policies: same `POLICY_SELECT` shape as `/api/agent/policies`, but that route's `isAssignedToAgent` guard is replaced with a plain `isAgent` check (the access-control change).
+- Policies: same `POLICY_SELECT` shape as `/api/agent/policies`, whose `isAssignedToAgent` guard is removed on both `GET` and `PATCH` per the access-control change above.
 - Requests: all `service_requests` for this `user_id` (any status, any assignee) — this client's full conversation history, not just open ones.
 - Documents: filename, content type, size, created date (metadata only, not the file body) — `documents` table, `isAgent`-gated read, admin client.
 
@@ -97,11 +99,25 @@ begin
   end if;
 end $$;
 
-alter publication supabase_realtime add table public.service_requests;
-alter publication supabase_realtime add table public.service_request_messages;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'service_requests'
+  ) then
+    alter publication supabase_realtime add table public.service_requests;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'service_request_messages'
+  ) then
+    alter publication supabase_realtime add table public.service_request_messages;
+  end if;
+end $$;
 ```
 
-Both new policies are `for select` only — they run alongside the existing client-owner policies (Postgres OR-combines permissive policies for the same command), so client-facing access is unchanged, and agents still get no direct `insert`/`update`/`delete` via RLS — all writes continue through the admin-client API routes exactly as today. The `alter publication` statements are idempotent in practice (re-adding an already-added table errors; if this migration is ever re-run, that line needs a guard or a manual skip — noted for whoever runs it) and only take effect once, at migration time.
+Both new RLS policies are `for select` only — they run alongside the existing client-owner policies (Postgres OR-combines permissive policies for the same command), so client-facing access is unchanged, and agents still get no direct `insert`/`update`/`delete` via RLS — all writes continue through the admin-client API routes exactly as today. The publication-membership checks make the `alter publication` statements idempotent too, matching the `if not exists` style already used for the policies above.
 
 ## Visual style
 
