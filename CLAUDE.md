@@ -31,10 +31,11 @@ This project follows the `superpowers` skill flow for anything beyond a trivial 
 
 Check `docs/superpowers/specs/` and `docs/superpowers/plans/` for prior art before starting something that might already be designed.
 
-## Current state (as of 2026-07-24)
+## Current state (as of 2026-07-26)
 
 - Cloudflare/D1/R2/OpenAI-Sites migration to Vercel + Supabase: **done**.
 - Policy enrichment (premium due dates, carrier logo directory, packet-delivery notifications), the staff shell + Manage Staff screen, and agent↔client messaging: **done**, all merged to `main`.
 - A manual security review found and fixed: a messaging RLS gap, a fail-open auth fallback, a search-filter injection risk, an IDOR gap in agent policy routes, and a header-injection risk on document downloads. Left open on purpose: no admin/staff role tiering yet (any staff account can grant/revoke others — flat trust model, intentional for a small team), and no CSP headers yet (flagged, not demonstrated as exploitable).
-- An "MVP launch checklist" plan (real-data fix for the Family & Household page, Terms/Privacy pages, styled error/404 pages, fixing two fake-persistence bugs in Settings) is **in progress** on branch `feature/mvp-launch-checklist` in `.worktrees/mvp-launch-checklist/` — check `git log` on that branch and `docs/superpowers/plans/2026-07-24-mvp-launch-checklist.md` before assuming it's done or redoing it.
+- The "MVP launch checklist" (real-data fix for Family & Household, Terms/Privacy pages, styled error/404 pages, fixing two fake-persistence bugs in Settings, `?mode`-aware login): **done**, merged to `main`.
+- A **staff invite-by-email** design is approved (`docs/superpowers/specs/2026-07-25-staff-invite-design.md`) — extends the existing Manage Staff page so an agent can invite someone who hasn't signed up yet, instead of the current dead-end error. **Not yet planned or implemented** — this is the next real piece of unstarted, already-designed work if picking this project back up.
 - Deferred, not yet scoped: a "version control" feature for documents/data-edit history (scope was never nailed down — clarify before starting).
