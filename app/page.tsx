@@ -866,7 +866,7 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => { fetch("/api/notifications", { cache: "no-store" }).then((r) => r.json()).then((d) => setUnreadCount((d.notifications || []).filter((n: { read: boolean }) => !n.read).length)); }, [portalMode]);
+  useEffect(() => { fetch("/api/notifications", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.resolve({ notifications: [] })).then((d) => setUnreadCount((d.notifications || []).filter((n: { read: boolean }) => !n.read).length)).catch(() => {}); }, [portalMode]);
 
   const resetScanner = () => {
     setScanStage("idle"); setScanProgress(0); setScanStep("Preparing document"); setScanFileName(""); setScanError(""); setExtractedPolicy(null); setScanFile(null); setScanSaving(false);

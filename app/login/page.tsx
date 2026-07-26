@@ -159,6 +159,7 @@ function LoginForm() {
         <LockKeyhole size={13} />
         Protected by Supabase Auth. Do not enter SSNs, bank credentials, or carrier passwords.
       </small>
+      <small className="privacy-line">Admin? <Link href="/staff/login">Sign in as admin</Link></small>
     </form>
   );
 }

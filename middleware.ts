@@ -105,18 +105,9 @@ export async function middleware(request: NextRequest) {
     return redirect;
   }
 
-  if (user && pathname.startsWith("/staff") && pathname !== "/staff/login") {
-    const { isAgent } = await import("./app/service-routing");
-    const allowed = await isAgent(user.id);
-    if (!allowed) {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/";
-      redirectUrl.search = "?notice=staff_access_denied";
-      const redirect = NextResponse.redirect(redirectUrl);
-      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
-      return redirect;
-    }
-  }
+  // Agent authorization is checked in app/staff/(shell)/layout.tsx (Node.js runtime)
+  // rather than here, because the admin Supabase client requires Node.js and cannot
+  // run in the Edge runtime that middleware uses.
 
   return response;
 }
