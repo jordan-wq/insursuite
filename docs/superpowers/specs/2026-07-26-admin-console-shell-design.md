@@ -49,7 +49,7 @@ New route tree under `app/staff/(shell)/`:
 
 - `GET`: same `REQUEST_SELECT` shape as today's queue route, but drops the `.eq("assigned_to", user.id)` filter — returns every `service_requests` row, still `isAgent`-gated. Adds an `assignedToEmail` field per row using the same `agent_roles` → `client_profiles.email` join pattern already used in `/api/staff/team` (falls back to "(no profile)"; `null` `assigned_to` renders as "Unassigned" in the UI).
 - `PATCH`: extends today's body shape with an explicit reassignment path — `{ id, assignedTo }` sets `assigned_to` to any value (including the caller's own id for "claim", or `null` to unclaim), no longer restricted to `.eq("assigned_to", user.id)` on the update (today's guard assumed only the assigned agent could touch their own row; team-wide claiming needs any agent to be able to update any row). Status updates (`{ id, status }`) keep working exactly as today, same relaxed `.eq` scope.
-- Thread messages (`app/api/agent/requests/[id]/messages/route.ts`) keep working as-is — they're already not assignment-scoped beyond the `isAgent` check (verify during implementation; if they are scoped, relax the same way).
+- Thread messages (`app/api/agent/requests/[id]/messages/route.ts`) currently scope both `GET` and `POST` to `.eq("assigned_to", user.id)` when looking up the parent `service_requests` row (404ing with "Request not found in your assigned queue" otherwise) — this needs the same relaxation as the conversations route: drop the `assigned_to` equality check, keep a plain `isAgent` existence check on the parent request. Without this, claim/reassign in the list UI works but replying to a reassigned or newly claimed conversation 404s.
 
 Page UI: same list-plus-side-thread-panel interaction the current Queue page already has (`app/staff/(shell)/page.tsx` today), moved to `app/staff/(shell)/conversations/page.tsx`, with an added "Assigned to" column/badge and a reassign control (dropdown of staff, sourced from `/api/staff/team`) next to the existing status `<select>`. "Start a conversation" panel and the client search it uses (`/api/agent/clients`) carry over unchanged.
 
@@ -59,7 +59,7 @@ Page UI: same list-plus-side-thread-panel interaction the current Queue page alr
 
 `GET /api/agent/clients` (extend existing route, don't duplicate): today, an empty/short query returns `{ clients: [] }` — that behavior is unchanged for a *non-empty* query under 2 characters (the existing typeahead debounce guard). A request with **no `query` param at all** is new: list mode — paginated `client_profiles` (`page`, `pageSize`, default 25), sorted by `full_name`, returning `{ clients, total }`. This is additive: the existing "start a conversation" search box always calls this endpoint with a non-empty typed value, so it never hits the new list-mode branch — no behavior change for that call site.
 
-Directory columns: name, email, onboarding status, joined date. Row click → `/staff/clients/[id]`.
+Directory columns: name, email, onboarding status, joined date. Row click → `/staff/clients/[id]`. List mode must be detected with `searchParams.has("query")` (query param absent entirely), not an empty-string check — the existing short-query guard already collapses `null` and `""` into the same `{ clients: [] }` response, so list mode needs a distinct check from that guard.
 
 `GET /api/agent/clients/[id]` (new): `isAgent`-gated (not assignment-gated, per the access-control change above). Returns:
 - Profile: same shape `client-profile` GET already returns for the client themself (top-level fields + the sanitized `profile` jsonb), reusing `sanitizeProfile()`'s existing allow-list — no new fields exposed.
@@ -71,7 +71,7 @@ Directory columns: name, email, onboarding status, joined date. Row click → `/
 
 ## Realtime & RLS migration
 
-New migration (e.g. `supabase/migrations/0005_agent_realtime_read.sql`):
+New migration (`supabase/migrations/0006_agent_realtime_read.sql` — `0001` through `0005` are already taken):
 
 ```sql
 do $$
