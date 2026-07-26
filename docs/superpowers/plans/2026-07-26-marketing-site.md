@@ -65,24 +65,22 @@ Note: this only makes the `--font-serif` custom property available — it does n
 
 - [ ] **Step 2: Add navy design tokens and the editorial content style to `app/globals.css`**
 
-**Important — name collision check first:** `app/globals.css`'s `:root` block (lines 6-8) already declares `--navy-950`, `--navy-900` (`#08224c`), and `--navy-800` (`#0a306c`) — different colors than what this task needs. Do NOT reuse those names (it would create two conflicting definitions of the same custom property, with whichever comes later in the file silently winning). Use distinct names instead — add these near the existing `--color-text-soft`/`--color-text-muted`/`--color-border` tokens:
+Find the `:root` block that already defines `--color-text-soft`/`--color-text-muted`/`--color-border` (around line 5-27) and add explicit navy tokens near it:
 
 ```css
-  --editorial-navy-900: #081831;
-  --editorial-navy-800: #102039;
-  --editorial-navy-accent: #2868d8;
+  --navy-900: #081831;
+  --navy-800: #102039;
+  --navy-accent: #2868d8;
 ```
-
-(`#081831` and `#102039` are already used as hardcoded literals elsewhere in this file — e.g. `.legal-content h1`, `.hero-copy h1` — so this just gives the existing color a proper token name under this task's new scope, without touching the pre-existing `--navy-900`/`--navy-800` tokens or anything that currently uses them.)
 
 Then, near the existing `.legal-content` rules (search for `.legal-content` — added during the MVP-launch-checklist work), add a parallel editorial style block for the new content pages:
 
 ```css
 .editorial-content { max-width:760px; margin:0 auto; padding:clamp(38px,6vw,72px) clamp(20px,5vw,72px) 96px; color:#334259; }
-.editorial-content h1 { font-family:var(--font-serif), Georgia, serif; margin:0 0 6px; color:var(--editorial-navy-900); font-size:clamp(34px,5.5vw,50px); font-weight:600; letter-spacing:-.5px; line-height:1.08; }
-.editorial-content h2 { font-family:var(--font-serif), Georgia, serif; margin:38px 0 12px; color:var(--editorial-navy-800); font-size:clamp(22px,3vw,26px); font-weight:600; letter-spacing:-.3px; }
+.editorial-content h1 { font-family:var(--font-serif), Georgia, serif; margin:0 0 6px; color:var(--navy-900); font-size:clamp(34px,5.5vw,50px); font-weight:600; letter-spacing:-.5px; line-height:1.08; }
+.editorial-content h2 { font-family:var(--font-serif), Georgia, serif; margin:38px 0 12px; color:var(--navy-800); font-size:clamp(22px,3vw,26px); font-weight:600; letter-spacing:-.3px; }
 .editorial-content p { margin:0 0 6px; line-height:1.75; font-size:16px; }
-.editorial-kicker { display:inline-block; margin-bottom:18px; color:var(--editorial-navy-accent); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
+.editorial-kicker { display:inline-block; margin-bottom:18px; color:var(--navy-accent); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
 .editorial-content .content-note { margin-top:36px; padding-top:20px; border-top:1px solid rgba(204,216,230,.72); color:#697890; font-size:13px; }
 ```
 
@@ -233,17 +231,7 @@ export function MarketingFooter() {
 
 Notes: `Menu`/`X`/`ShieldCheck` are all standard `lucide-react` icons (the package is already a dependency, `ShieldCheck` is already used throughout this codebase). `NAV_LINKS` is defined once and reused by both the nav and the footer, so there's one list to update if a page is ever added/renamed. `MarketingNav` is `"use client"` because it needs local state for the mobile menu toggle — `MarketingFooter` doesn't need state but lives in the same file since the two are always used together and share `NAV_LINKS`.
 
-- [ ] **Step 2: Fix an existing rule that would otherwise break the mobile toggle**
-
-**Important — pre-existing conflict:** `app/globals.css` line 392 has `.marketing-nav > div:last-child { display:flex; align-items:center; gap:8px; }`. In the new markup, `.marketing-nav-body` IS `.marketing-nav`'s last-child `<div>`, so this old rule also matches it — and at specificity (0,2,1) it beats the new mobile media-query rule's `display:none` at (0,1,0), meaning the nav body would stay visibly `flex` at every viewport width and the hamburger toggle would do nothing. Fix the old rule so it no longer matches the new element — change line 392 to:
-
-```css
-.marketing-nav > div:last-child:not(.marketing-nav-body) { display:flex; align-items:center; gap:8px; }
-```
-
-This is a one-word-added change (`:not(.marketing-nav-body)`) — it keeps the old rule working for anything else that might rely on it (nothing else currently does, per a check of the codebase, but scoping it this way is safer than deleting it outright) while letting the new nav's own CSS take over for `.marketing-nav-body`.
-
-- [ ] **Step 3: Add CSS for the two login buttons and the mobile menu toggle**
+- [ ] **Step 2: Add CSS for the two login buttons and the mobile menu toggle**
 
 Add to `app/globals.css`, near the existing `.marketing-nav`/`.marketing-footer` rules:
 
@@ -254,8 +242,6 @@ Add to `app/globals.css`, near the existing `.marketing-nav`/`.marketing-footer`
 .marketing-nav-links a:hover { color:#174fae; background:#edf5ff; }
 .marketing-nav-logins { display:flex; align-items:center; gap:8px; padding-left:14px; border-left:1px solid rgba(204,216,230,.72); }
 .marketing-nav-logins .primary-button, .marketing-nav-logins .secondary-button { padding:0 16px; min-height:38px; font-size:13px; text-decoration:none; }
-.marketing-nav-logins .primary-button { color:#fff; }
-.marketing-nav-logins .secondary-button { color:#18325b; }
 .marketing-menu-toggle { display:none; padding:8px; border:0; border-radius:8px; background:transparent; color:#102039; cursor:pointer; }
 @media (max-width: 860px) {
   .marketing-menu-toggle { display:flex; }
@@ -267,14 +253,14 @@ Add to `app/globals.css`, near the existing `.marketing-nav`/`.marketing-footer`
 .marketing-footer .marketing-nav-links, .marketing-footer div { flex-wrap:wrap; }
 ```
 
-Notes: `.marketing-nav-logins .primary-button`/`.secondary-button` explicitly set `color` because the existing `.marketing-nav a { color:#40536e; ... }` rule (line 393, specificity (0,1,1)) would otherwise win over the base `.primary-button`/`.secondary-button` classes' own color (specificity (0,1,0)) and render both login links as plain gray-blue text instead of the intended solid-navy/outlined button treatment — this override is required, not optional. Separately, this mobile-menu-toggle pattern is genuinely new (the existing `.marketing-nav` mobile behavior just stacks/scrolls; the toggle-button interaction pattern is new code for the marketing context, matching the spec's explicit callout of this). At 7 nav links plus 2 login buttons, the nav needs the collapse to avoid crowding — 860px was chosen (not the more common 768px) to give the 7-link row enough room to stay uncrowded slightly longer before collapsing, given how much horizontal content this specific nav carries.
+Notes: this mobile-menu-toggle pattern is genuinely new (the existing `.marketing-nav` mobile behavior just stacks/scrolls; the toggle-button interaction pattern is new code for the marketing context, matching the spec's explicit callout of this). At 7 nav links plus 2 login buttons, the nav needs the collapse to avoid crowding — 860px was chosen (not the more common 768px) to give the 7-link row enough room to stay uncrowded slightly longer before collapsing, given how much horizontal content this specific nav carries.
 
-- [ ] **Step 4: Build**
+- [ ] **Step 3: Build**
 
 Run: `npm run build`
 Expected: exits 0. `MarketingNav`/`MarketingFooter` aren't imported anywhere yet, so this is inert — just confirms no syntax errors.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add app/components/marketing-shell.tsx app/globals.css
@@ -322,13 +308,31 @@ git commit -m "Support ?mode=signup on the login page"
 
 ---
 
-### Task 5: Generative background motif asset — already done
+### Task 5: Add the generative background motif asset
 
-`public/motifs/distributed-held.svg` is already committed to `main` (generated using a seeded Poisson-disc node-field algorithm — nodes placed with a minimum-distance constraint, connected only to their nearest 2 neighbors, line opacity falling off with distance — a deliberate alternative to a generic gradient-blob decoration). No action needed for this task; it's listed here only so Task 6 (which references `/motifs/distributed-held.svg`) has a clear pointer to where the asset came from.
+**Files:**
+- Create: `public/motifs/distributed-held.svg`
 
-- [ ] **Step 1: Confirm the asset is present**
+- [ ] **Step 1: Add the pre-generated SVG**
 
-Run: `wc -l public/motifs/distributed-held.svg` — expect 158 lines, starting with `<svg viewBox="0 0 1400 220" ...>`. If it's missing for any reason, stop and flag it — don't regenerate a different one, since Task 6's homepage design was validated against this specific file.
+This asset was generated during design exploration using a seeded Poisson-disc node-field algorithm (nodes placed with a minimum-distance constraint, connected only to their nearest 2 neighbors, line opacity falling off with distance) — a deliberate alternative to a generic gradient-blob decoration. Copy the already-generated file from the brainstorming session into the app's public assets:
+
+```bash
+cp ".superpowers/brainstorm/motif-wide-divider.svg" "public/motifs/distributed-held.svg"
+```
+
+(If `.superpowers/brainstorm/motif-wide-divider.svg` isn't present in this environment, regenerate it: the generator script is at `.superpowers/brainstorm/generate-motif.mjs` in the session that produced this plan — run `node generate-motif.mjs` from that directory and copy `motif-wide-divider.svg`. The algorithm is fully deterministic per seed, so this reproduces the exact same file.)
+
+- [ ] **Step 2: Verify it's a valid, reasonably small SVG**
+
+Run: `wc -l public/motifs/distributed-held.svg` — expect a few hundred lines (one `<line>`/`<circle>` element per line), and confirm the file starts with `<svg viewBox="0 0 1400 220" ...>`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add public/motifs/distributed-held.svg
+git commit -m "Add generative background motif asset"
+```
 
 ---
 
@@ -422,9 +426,9 @@ Add to `app/globals.css`, near the existing `.marketing-hero`/`.trust-strip` rul
 .teaser-card p { margin:0; color:#334259; font-size:14px; line-height:1.55; }
 .teaser-card svg { color:#2868d8; }
 .differentiator-strip { padding:8px clamp(20px,5vw,72px) 56px; }
-.differentiator-strip h2 { font-family:var(--font-serif), Georgia, serif; margin:0 0 22px; color:var(--editorial-navy-900); font-size:clamp(24px,3vw,30px); }
+.differentiator-strip h2 { font-family:var(--font-serif), Georgia, serif; margin:0 0 22px; color:var(--navy-900); font-size:clamp(24px,3vw,30px); }
 .differentiator-strip > div { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:22px; }
-.differentiator-strip article strong { display:block; margin-bottom:6px; color:var(--editorial-navy-800); font-size:15px; }
+.differentiator-strip article strong { display:block; margin-bottom:6px; color:var(--navy-800); font-size:15px; }
 .differentiator-strip article p { margin:0; color:#536277; font-size:13px; line-height:1.55; }
 @media (max-width: 860px) {
   .homepage-teasers, .differentiator-strip > div { grid-template-columns:1fr; }
@@ -507,7 +511,7 @@ export default function ManifestoPage() {
         <h1>Coverage is a promise. The system around it should act like one.</h1>
         <p>A few things we believe, plainly stated:</p>
         {beliefs.map((line, index) => (
-          <p key={line} style={{ marginTop: index === 0 ? 28 : 18 }}><strong style={{ color: "var(--editorial-navy-accent)", marginRight: 10 }}>{String(index + 1).padStart(2, "0")}</strong>{line}</p>
+          <p key={line} style={{ marginTop: index === 0 ? 28 : 18 }}><strong style={{ color: "var(--navy-accent)", marginRight: 10 }}>{String(index + 1).padStart(2, "0")}</strong>{line}</p>
         ))}
       </section>
       <MarketingFooter />
