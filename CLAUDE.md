@@ -16,7 +16,7 @@ Insurance client portal. Next.js 16 (App Router, Turbopack), React 19, TypeScrip
 ### Auth and the client/agent trust boundary
 
 - `app/auth.ts`'s `getCurrentUser()` is **fail-closed**: if Supabase is configured (any real deployment) and there's no real session, it returns `null` — it never falls back to a synthetic user. The local-dev synthetic user only exists when Supabase isn't configured at all, and never in production. Don't reintroduce a fallback-to-fake-user path.
-- Two Supabase clients: `lib/supabase/server.ts` (session-scoped, RLS-enforced — use this for anything client-facing) and `lib/supabase/admin.ts` (service-role, **bypasses RLS**). The admin client must only be touched after an explicit `isAgent(user.id)` check, and every agent-facing route that looks up a specific client's data must also verify that client is actually assigned to that agent (see `isAssignedToAgent()` in `app/api/agent/policies/route.ts` for the pattern) — this is the IDOR guard this codebase relies on. Don't add a new agent route that queries by a client-supplied ID without this check.
+- Two Supabase clients: `lib/supabase/server.ts` (session-scoped, RLS-enforced — use this for anything client-facing) and `lib/supabase/admin.ts` (service-role, **bypasses RLS**). The admin client must only be touched after an explicit `isAgent(user.id)` check — that's the only authorization boundary on agent-facing routes now. `isAssignedToAgent()` (an earlier per-client assignment check in `app/api/agent/policies/route.ts`) was deliberately removed during the admin-console-shell work (see `docs/superpowers/specs/2026-07-26-admin-console-shell-design.md`'s "Deliberate access-control change") — any staff account can now read/act on any client, matching the existing flat trust model. Don't reintroduce assignment-scoping without checking that spec first.
 - Profile data shape gotcha: `StoredProfile` has `fullName`/`phone`/`dateOfBirth` at the top level, but everything else collected during onboarding (beneficiaries, emergency contact, income, goals, etc.) lives one level deeper in `StoredProfile.profile` (a jsonb blob filtered through `sanitizeProfile()`'s allow-list in `app/profile-fields.ts`). Reading `profile.primaryBeneficiary` instead of `profile.profile.primaryBeneficiary` is a real mistake that's been made in this codebase before — double-check which level a field lives at.
 - `saveProfilePatch` (`app/page.tsx`) takes `(patch, accountPatch?)` — `patch` merges into the nested `profile` jsonb, `accountPatch` (optional, `{fullName?, phone?}`) overrides the top-level fields. It always POSTs to `/api/client-profile` (that route has no PATCH handler, only GET/POST).
 
@@ -29,11 +29,34 @@ AI Assistant, Coverage Review, and Claims Concierge were deliberately pulled fro
 This project follows the `superpowers` skill flow for anything beyond a trivial fix:
 1. **Brainstorm** → design doc in `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`, reviewed by a spec-document-reviewer subagent before moving on.
 2. **Plan** → task-by-task implementation plan in `docs/superpowers/plans/YYYY-MM-DD-<topic>.md`, reviewed the same way.
-3. **Execute** → either directly in the working tree (fine for most changes) or in an isolated git worktree under `.worktrees/` on a `feature/*` branch (ask the user which — some sessions have gone straight to `main`, others have used a worktree; there's no fixed rule, it depends on how much the user wants to review before it lands). Each task gets its own commit, a spec-compliance review, and a code-quality review before moving to the next task.
+3. **Execute** → in an isolated git worktree under `.worktrees/<topic>` on branch `feature/<topic>` (slug matches the spec/plan filename), *unless* the change is a trivial one-off fix with no spec/plan, which may go directly on `main`. Each task gets its own commit, a spec-compliance review, and a code-quality review before moving to the next task.
 
 Check `docs/superpowers/specs/` and `docs/superpowers/plans/` for prior art before starting something that might already be designed.
 
+#### Session coordination
+
+Multiple Claude Code sessions can be working this repo at once. Before starting *any* new work:
+- Read `docs/superpowers/ACTIVE.md` — the ledger of in-flight tasks (topic, worktree/branch, phase, started date).
+- Run `git worktree list` and `git status --short` on `main`. Uncommitted or staged changes with no matching ledger entry mean someone's mid-task without having logged it — surface this to the user rather than building on top of it or discarding it.
+- Don't edit files another ledger entry is actively touching unless you're explicitly resuming that entry's task.
+- Add an entry when you start (brainstorming/planning/executing), update its phase as work progresses, remove it when the task merges to `main` or is abandoned.
+- Whichever session is active is responsible for keeping this ledger honest — correct stale or missing entries as you find them rather than leaving drift for the next session.
+
+#### Worktree hygiene
+
+- Worktree path and branch name share the topic slug used by the spec/plan filenames: `.worktrees/<topic>` / `feature/<topic>`.
+- Once a feature branch merges to `main`, remove its worktree (`git worktree remove .worktrees/<topic>`) and delete the local branch. Do this prune as a first step before creating a new worktree, not as an afterthought.
+
+#### Token/context efficiency
+
+- Delegate broad, multi-file, or open-ended searches to the Explore agent rather than manually chaining Grep/Glob calls.
+- Don't re-read a file immediately after editing it — Edit/Write already confirms the change landed.
+- `app/page.tsx` is thousands of lines; jump to the relevant section with Grep/Glob line numbers instead of reading it in full.
+- `npm run build` is the only verification step and isn't cheap — batch related edits and build once before wrapping up, not after every small unrelated change.
+
 ### Current state (as of 2026-07-26)
+
+This section covers completed milestones only. For live in-flight work, check `docs/superpowers/ACTIVE.md`.
 
 - Cloudflare/D1/R2/OpenAI-Sites migration to Vercel + Supabase: **done**.
 - Policy enrichment (premium due dates, carrier logo directory, packet-delivery notifications), the staff shell + Manage Staff screen, and agent↔client messaging: **done**, all merged to `main`.
