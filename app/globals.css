@@ -786,3 +786,50 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   background: rgba(24, 130, 79, .18);
 }
 .staff-shell .form-error { color: #f87171 !important; }
+.staff-shell .support-bubble p {
+  color: #e4e9f5;
+  background: #1a2440;
+  border-color: #2c3a5c;
+  box-shadow: none;
+}
+.staff-shell .support-bubble p small { color: #8894b3; }
+.staff-shell .support-bubble.consultant p {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+.staff-shell .support-bubble.consultant p small { color: #cfe0fb; }
+.staff-shell .support-bubble > span { background: #1a2440; color: #8fb2f7; }
+.staff-shell .support-bubble.consultant > span { color: #fff; background: #2563eb; }
+.staff-shell .support-composer {
+  background: #141d33;
+  border-top-color: #232f4d;
+}
+.staff-shell .support-composer input {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .support-composer button {
+  color: #8894b3;
+  background: #1a2440;
+}
+.staff-shell .new-conversation-panel { background: #0d1526; border-color: #232f4d; }
+.staff-shell .new-conversation-panel > input {
+  color: #f2f5fa;
+  background: #141d33;
+  border-color: #2c3a5c;
+}
+.staff-shell .client-search-results button {
+  color: #d3dced;
+  background: #141d33;
+  border-color: #2c3a5c;
+}
+.staff-shell .agent-queue article { background: #141d33; }
+.staff-shell .agent-queue article.unread { background: #16213f; border-left-color: #2563eb; }
+.staff-shell .agent-queue span { color: #8894b3; }
+.staff-shell .agent-intake-details div { background: #1a2440; }
+.staff-shell .agent-intake-details dt { color: #8894b3; }
+.staff-shell .agent-intake-details dd { color: #f2f5fa; }
+.staff-shell .knowledge-list p { background: #141d33; }
+.staff-shell .empty-state strong { color: #f2f5fa; }
