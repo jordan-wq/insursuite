@@ -700,3 +700,206 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   .stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .priority-ledger { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
+
+/* ==========================================================================
+   Staff portal dark redesign — everything below is scoped under .staff-shell.
+   No rule above this line is modified. See docs/superpowers/specs/2026-07-27-staff-portal-dark-redesign-design.md.
+   ========================================================================== */
+
+.staff-shell {
+  background: #0b1220;
+  color: #f2f5fa;
+
+  --color-page: #0b1220;
+  --color-text: #f2f5fa;
+  --color-text-soft: #b7c1d9;
+  --color-text-muted: #8894b3;
+  --color-border: #232f4d;
+  --color-border-soft: #1c2740;
+  --color-surface: #141d33;
+  --color-surface-strong: #1a2440;
+  --color-surface-muted: #0d1526;
+
+  --ink: #f2f5fa;
+  --muted: #8894b3;
+  --line: #232f4d;
+  --soft: #141d33;
+
+  --panel-bg: #141d33;
+  --panel-border: 1px solid #232f4d;
+  --panel-shadow: none;
+}
+
+.staff-shell .sidebar {
+  background: #0d1526;
+  border-right: 1px solid #1c2740;
+  box-shadow: none;
+}
+.staff-shell .brand strong { color: #f2f5fa; }
+.staff-shell .brand strong span { color: #5b8fef; }
+.staff-shell .brand small { color: #5b6c8c; }
+.staff-shell .staff-nav-group-label {
+  padding: 0 10px;
+  margin: 14px 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #465170;
+}
+.staff-shell .sidebar nav > .staff-nav-group-label:first-child { margin-top: 0; }
+.staff-shell .sidebar nav a { color: #8894b3; }
+.staff-shell .sidebar nav a:hover { background: rgba(255,255,255,.05); transform: none; }
+.staff-shell .sidebar nav a.active { background: #1a2b52; color: #f2f5fa; box-shadow: none; }
+
+.staff-shell .panel,
+.staff-shell .stat-card { border-color: #232f4d; }
+.staff-shell .panel-header h2 { color: #f2f5fa; }
+.staff-shell .text-button { color: #8fb2f7; }
+.staff-shell .panel-header .text-button:hover { background: rgba(255,255,255,.06); }
+.staff-shell .eyebrow-row { color: #b7c1d9; }
+.staff-shell .eyebrow-row svg { color: #8894b3; }
+.staff-shell .stat-value { color: #f2f5fa; }
+.staff-shell .stat-card::before { content: none; }
+
+.staff-shell .secondary-button {
+  border-color: #2c3a5c;
+  color: #d3dced;
+  background: #171f38;
+}
+.staff-shell .modal-form label,
+.staff-shell .knowledge-form label {
+  color: #d3dced;
+}
+.staff-shell .modal-form input,
+.staff-shell .modal-form select,
+.staff-shell .modal-form textarea,
+.staff-shell .knowledge-form input,
+.staff-shell .knowledge-form textarea,
+.staff-shell .agent-queue select {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .modal-form .form-notice {
+  color: #86efac;
+  background: rgba(24, 130, 79, .18);
+}
+.staff-shell .form-error { color: #f87171 !important; }
+.staff-shell .support-bubble p {
+  color: #e4e9f5;
+  background: #1a2440;
+  border-color: #2c3a5c;
+  box-shadow: none;
+}
+.staff-shell .support-bubble p small { color: #8894b3; }
+.staff-shell .support-bubble.consultant p {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+.staff-shell .support-bubble.consultant p small { color: #cfe0fb; }
+.staff-shell .support-bubble > span { background: #1a2440; color: #8fb2f7; }
+.staff-shell .support-bubble.consultant > span { color: #fff; background: #2563eb; }
+.staff-shell .support-composer {
+  background: #141d33;
+  border-top-color: #232f4d;
+}
+.staff-shell .support-composer input {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .support-composer button:not(:last-child) {
+  color: #8894b3;
+  background: #1a2440;
+}
+.staff-shell .support-composer button:last-child {
+  color: #fff;
+  background: #2563eb;
+}
+.staff-shell .new-conversation-panel { background: #0d1526; border-color: #232f4d; }
+.staff-shell .new-conversation-panel > input {
+  color: #f2f5fa;
+  background: #141d33;
+  border-color: #2c3a5c;
+}
+.staff-shell .client-search-results button {
+  color: #d3dced;
+  background: #141d33;
+  border-color: #2c3a5c;
+}
+.staff-shell .agent-queue article { background: #141d33; }
+.staff-shell .agent-queue article.unread { background: #16213f; border-left-color: #2563eb; }
+.staff-shell .agent-queue span { color: #8894b3; }
+.staff-shell .agent-intake-details div { background: #1a2440; }
+.staff-shell .agent-intake-details dt { color: #8894b3; }
+.staff-shell .agent-intake-details dd { color: #f2f5fa; }
+.staff-shell .knowledge-list p { background: #141d33; }
+.staff-shell .empty-state strong { color: #f2f5fa; }
+
+.staff-shell .onboarding-checklist {
+  background: #141d33;
+  border-color: #232f4d;
+}
+.staff-shell .onboarding-checklist h2 { color: #f2f5fa; }
+.staff-shell .onboarding-checklist > p { color: #8894b3; }
+.staff-shell .overall-progress { background: #232f4d; }
+.staff-shell .onboarding-checklist > small { color: #5b8fef; }
+.staff-shell .onboarding-checklist nav button {
+  color: #b7c1d9;
+}
+.staff-shell .onboarding-checklist nav button > span {
+  border-color: #2c3a5c;
+  color: #8894b3;
+}
+.staff-shell .onboarding-checklist nav button strong { color: #f2f5fa; }
+.staff-shell .onboarding-checklist nav button small { color: #8894b3; }
+.staff-shell .onboarding-checklist nav button.active {
+  color: #dbe6fb;
+  background: #1a2b52;
+}
+.staff-shell .onboarding-checklist nav button.active > span {
+  border-color: #5b8fef;
+  color: #fff;
+  background: #2563eb;
+}
+.staff-shell .onboarding-checklist nav button.complete > span {
+  border-color: #234533;
+  color: #86efac;
+  background: #12291c;
+}
+.staff-shell .onboarding-form-card {
+  background: #141d33;
+  border-color: #232f4d;
+}
+.staff-shell .onboarding-form-head > span { color: #5b8fef; }
+.staff-shell .onboarding-form-head h1 { color: #f2f5fa; }
+.staff-shell .onboarding-form-head p { color: #8894b3; }
+.staff-shell .intake-fields > label { color: #d3dced; }
+.staff-shell .intake-fields input:not([type=checkbox]),
+.staff-shell .intake-fields select,
+.staff-shell .intake-fields textarea {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .intake-fields label > small { color: #8894b3; }
+.staff-shell .onboarding-actions { border-top-color: #232f4d; }
+.staff-shell .step-label { color: #dbe6fb; background: #1a2b52; }
+
+.staff-shell .stat-card-accent {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+}
+.staff-shell .stat-card-accent .eyebrow-row,
+.staff-shell .stat-card-accent .eyebrow-row svg,
+.staff-shell .stat-card-accent .stat-value {
+  color: #fff;
+}
+.staff-shell .stat-card-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,.75);
+}

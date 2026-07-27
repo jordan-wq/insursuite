@@ -329,9 +329,13 @@ Append:
   background: #0d1526;
   border-color: #2c3a5c;
 }
-.staff-shell .support-composer button {
+.staff-shell .support-composer button:not(:last-child) {
   color: #8894b3;
   background: #1a2440;
+}
+.staff-shell .support-composer button:last-child {
+  color: #fff;
+  background: #2563eb;
 }
 .staff-shell .new-conversation-panel { background: #0d1526; border-color: #232f4d; }
 .staff-shell .new-conversation-panel > input {
@@ -353,6 +357,8 @@ Append:
 .staff-shell .knowledge-list p { background: #141d33; }
 .staff-shell .empty-state strong { color: #f2f5fa; }
 ```
+
+Note: `.staff-shell .support-composer button` is split into `:not(:last-child)` / `:last-child` rather than one flat selector, because a flat selector ties in specificity with the pre-existing global rule `.support-composer button:last-child { background:#2868d8 }` (`app/globals.css:343`) and loses on source order, silently killing the send button's blue accent. The `:last-child` variant reuses the plan's own accent color (`#2563eb`, matching `.support-bubble.consultant` and `.stat-card-accent` elsewhere in this plan).
 
 - [ ] **Step 2: Build**
 
@@ -415,9 +421,6 @@ Append:
   color: #86efac;
   background: #12291c;
 }
-.staff-shell .intake-safety { color: #86efac; background: #12291c; }
-.staff-shell .intake-safety strong { color: #b7f5c8; }
-.staff-shell .intake-safety small { color: #7fae8f; }
 .staff-shell .onboarding-form-card {
   background: #141d33;
   border-color: #232f4d;
@@ -434,14 +437,11 @@ Append:
   border-color: #2c3a5c;
 }
 .staff-shell .intake-fields label > small { color: #8894b3; }
-.staff-shell .intake-checkbox { border-color: #2c3a5c; background: #0d1526; }
-.staff-shell .intake-checkbox span small { color: #8894b3; }
-.staff-shell .sensitive-data-note { color: #86efac; background: #12291c; border-color: #234533; }
-.staff-shell .sensitive-data-note strong { color: #b7f5c8; }
-.staff-shell .sensitive-data-note small { color: #7fae8f; }
 .staff-shell .onboarding-actions { border-top-color: #232f4d; }
 .staff-shell .step-label { color: #dbe6fb; background: #1a2b52; }
 ```
+
+`.intake-safety`, `.sensitive-data-note`, and `.intake-checkbox` (also defined in `app/onboarding.css`) are intentionally left out here: they're rendered only by the client-facing onboarding flow (`/account-creation`), not by `/staff/onboarding/[id]` — this page's `FieldType` union has no checkbox variant and its JSX has no safety-banner element. They were in an earlier draft of this task (copied from the full `onboarding.css` class list without checking against this page's actual markup) and were removed as dead code once that was caught in review.
 
 - [ ] **Step 2: Build**
 
@@ -450,7 +450,7 @@ Expected: succeeds.
 
 - [ ] **Step 3: Manual check**
 
-Visit `/staff/onboarding`, open an in-progress intake (`/staff/onboarding/[id]`). Confirm: the left checklist panel and right form card are both dark-surfaced with legible text, the active/complete step indicators are visibly distinct, all input fields have a dark surface with visible border and legible typed text, and the green safety/sensitive-data notice banners are legible (light green text on dark green, not the original light-green-on-white).
+Visit `/staff/onboarding`, open an in-progress intake (`/staff/onboarding/[id]`). Confirm: the left checklist panel and right form card are both dark-surfaced with legible text, the active/complete step indicators are visibly distinct, and all input fields have a dark surface with visible border and legible typed text.
 
 - [ ] **Step 4: Commit**
 
