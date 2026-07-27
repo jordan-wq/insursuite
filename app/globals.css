@@ -78,6 +78,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sidebar nav button.active { background: linear-gradient(90deg, #1764e5, #1e55c7); box-shadow: 0 9px 22px rgba(0, 77, 209, .3); }
 .sidebar nav button span { flex: 1; }
 .sidebar nav button b { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #1e55b8; font-size: 12px; }
+.sidebar nav a { width: 100%; min-height: 43px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 7px; color: #fff; text-decoration: none; font-size: 14px; transition: .18s var(--ease-out); }
+.sidebar nav a:hover { background: rgba(255,255,255,.075); transform: translateX(2px); }
+.sidebar nav a.active { background: linear-gradient(90deg, #1764e5, #1e55c7); box-shadow: 0 9px 22px rgba(0, 77, 209, .3); }
+.sidebar nav a span { flex: 1; }
 .premium-card { margin-top: auto; padding: 16px; border: 1px solid rgba(129, 174, 239, .3); border-radius: 12px; background: rgba(20, 62, 120, .56); }
 .premium-card > div { display: flex; align-items: center; gap: 9px; }
 .premium-card > div strong { font-size: 13px; }
