@@ -837,3 +837,61 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
 .staff-shell .agent-intake-details dd { color: #f2f5fa; }
 .staff-shell .knowledge-list p { background: #141d33; }
 .staff-shell .empty-state strong { color: #f2f5fa; }
+
+.staff-shell .onboarding-checklist {
+  background: #141d33;
+  border-color: #232f4d;
+}
+.staff-shell .onboarding-checklist h2 { color: #f2f5fa; }
+.staff-shell .onboarding-checklist > p { color: #8894b3; }
+.staff-shell .overall-progress { background: #232f4d; }
+.staff-shell .onboarding-checklist > small { color: #5b8fef; }
+.staff-shell .onboarding-checklist nav button {
+  color: #b7c1d9;
+}
+.staff-shell .onboarding-checklist nav button > span {
+  border-color: #2c3a5c;
+  color: #8894b3;
+}
+.staff-shell .onboarding-checklist nav button strong { color: #f2f5fa; }
+.staff-shell .onboarding-checklist nav button small { color: #8894b3; }
+.staff-shell .onboarding-checklist nav button.active {
+  color: #dbe6fb;
+  background: #1a2b52;
+}
+.staff-shell .onboarding-checklist nav button.active > span {
+  border-color: #5b8fef;
+  color: #fff;
+  background: #2563eb;
+}
+.staff-shell .onboarding-checklist nav button.complete > span {
+  border-color: #234533;
+  color: #86efac;
+  background: #12291c;
+}
+.staff-shell .intake-safety { color: #86efac; background: #12291c; }
+.staff-shell .intake-safety strong { color: #b7f5c8; }
+.staff-shell .intake-safety small { color: #7fae8f; }
+.staff-shell .onboarding-form-card {
+  background: #141d33;
+  border-color: #232f4d;
+}
+.staff-shell .onboarding-form-head > span { color: #5b8fef; }
+.staff-shell .onboarding-form-head h1 { color: #f2f5fa; }
+.staff-shell .onboarding-form-head p { color: #8894b3; }
+.staff-shell .intake-fields > label { color: #d3dced; }
+.staff-shell .intake-fields input:not([type=checkbox]),
+.staff-shell .intake-fields select,
+.staff-shell .intake-fields textarea {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .intake-fields label > small { color: #8894b3; }
+.staff-shell .intake-checkbox { border-color: #2c3a5c; background: #0d1526; }
+.staff-shell .intake-checkbox span small { color: #8894b3; }
+.staff-shell .sensitive-data-note { color: #86efac; background: #12291c; border-color: #234533; }
+.staff-shell .sensitive-data-note strong { color: #b7f5c8; }
+.staff-shell .sensitive-data-note small { color: #7fae8f; }
+.staff-shell .onboarding-actions { border-top-color: #232f4d; }
+.staff-shell .step-label { color: #dbe6fb; background: #1a2b52; }
