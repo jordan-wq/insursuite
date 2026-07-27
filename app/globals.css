@@ -751,3 +751,13 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
 .staff-shell .sidebar nav a { color: #8894b3; }
 .staff-shell .sidebar nav a:hover { background: rgba(255,255,255,.05); transform: none; }
 .staff-shell .sidebar nav a.active { background: #1a2b52; color: #f2f5fa; box-shadow: none; }
+
+.staff-shell .panel,
+.staff-shell .stat-card { border-color: #232f4d; }
+.staff-shell .panel-header h2 { color: #f2f5fa; }
+.staff-shell .text-button { color: #8fb2f7; }
+.staff-shell .panel-header .text-button:hover { background: rgba(255,255,255,.06); }
+.staff-shell .eyebrow-row { color: #b7c1d9; }
+.staff-shell .eyebrow-row svg { color: #8894b3; }
+.staff-shell .stat-value { color: #f2f5fa; }
+.staff-shell .stat-card::before { content: none; }
