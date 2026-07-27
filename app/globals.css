@@ -286,9 +286,9 @@ body { color:var(--color-text); background:var(--color-page); font-size:var(--te
 .brand strong span { color:#9fc8ef; }
 .brand small { color:#c9d9e8; }
 .sidebar nav { gap:7px; }
-.sidebar nav button { min-height:46px; border-radius:12px; color:#edf6ff; }
-.sidebar nav button:hover { background:rgba(255,255,255,.105); transform:translateX(1px); }
-.sidebar nav button.active { background:rgba(255,255,255,.18); box-shadow:inset 3px 0 #9fc8ef, 0 12px 28px rgba(2,18,36,.18); }
+.sidebar nav button, .sidebar nav a { min-height:46px; border-radius:12px; color:#edf6ff; }
+.sidebar nav button:hover, .sidebar nav a:hover { background:rgba(255,255,255,.105); transform:translateX(1px); }
+.sidebar nav button.active, .sidebar nav a.active { background:rgba(255,255,255,.18); box-shadow:inset 3px 0 #9fc8ef, 0 12px 28px rgba(2,18,36,.18); }
 .premium-card { border-color:rgba(207,225,242,.24); border-radius:16px; background:rgba(255,255,255,.095); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
 .premium-card button { min-height:42px; border-radius:12px; background:#f8fbff; color:#153457; }
 .account-card { min-height:58px; padding:10px 8px; border-radius:14px; }
@@ -610,7 +610,7 @@ button, .primary-button, .secondary-button, .text-button, .policy-row, .add-poli
 button:active, .primary-button:active, .secondary-button:active, .policy-row:active, .add-policy-row:active, .action-grid button:active { transform:scale(.985); }
 .primary-button, .secondary-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
 .sidebar { width:270px; padding:22px 14px 18px; }
-.sidebar nav button { min-height:48px; }
+.sidebar nav button, .sidebar nav a { min-height:48px; }
 .brand small { max-width:180px; white-space:normal; line-height:1.35; }
 .premium-card { margin-top:18px; }
 .main-content { width:calc(100% - 258px); }
@@ -645,7 +645,7 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
 
 @media (max-width:920px) {
   .sidebar { width:min(330px,86vw); padding:18px 14px; }
-  .sidebar nav button { min-height:50px; font-size:14.5px; }
+  .sidebar nav button, .sidebar nav a { min-height:50px; font-size:14.5px; }
   .premium-card { margin-top:14px; }
   .topbar { position:sticky; top:0; z-index:35; margin:-14px -14px 14px; padding:14px; border-bottom:1px solid rgba(202,216,229,.72); background:rgba(248,250,251,.9); backdrop-filter:blur(16px); }
   .search-results { position:fixed; inset:74px 14px auto; width:auto; }
