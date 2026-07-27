@@ -5,6 +5,6 @@ One row per in-flight task. Any session must check this before starting new work
 | Topic slug | Worktree / branch | Phase | Started | Notes |
 |---|---|---|---|---|
 | staff-invite | `main` (not started) | designed | 2026-07-25 | Spec approved (`specs/2026-07-25-staff-invite-design.md`), no plan yet. Next unstarted work per CLAUDE.md. |
-| admin-console-shell | `.worktrees/admin-console-shell` / `feature/admin-console-shell` | planning | 2026-07-26 | Spec approved (`specs/2026-07-26-admin-console-shell-design.md`); writing the implementation plan now. |
+| admin-console-shell | `.worktrees/admin-console-shell` / `feature/admin-console-shell` | planned | 2026-07-26 | Plan written and reviewed (`plans/2026-07-26-admin-console-shell.md`, 11 tasks); execution not started. |
 
 Resolved: the previously-unclaimed uncommitted changes to `app/login/page.tsx`, `app/page.tsx`, `app/staff/(shell)/layout.tsx`, `app/staff/login/page.tsx`, `middleware.ts` were committed to `main` as `c23ca7e` ("Fix staff login: move isAgent check out of Edge middleware into shell layout") — that was the admin-login fix from earlier this session, unrelated to admin-console-shell.
