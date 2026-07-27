@@ -700,3 +700,32 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   .stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .priority-ledger { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
+
+/* ==========================================================================
+   Staff portal dark redesign — everything below is scoped under .staff-shell.
+   No rule above this line is modified. See docs/superpowers/specs/2026-07-27-staff-portal-dark-redesign-design.md.
+   ========================================================================== */
+
+.staff-shell {
+  background: #0b1220;
+  color: #f2f5fa;
+
+  --color-page: #0b1220;
+  --color-text: #f2f5fa;
+  --color-text-soft: #b7c1d9;
+  --color-text-muted: #8894b3;
+  --color-border: #232f4d;
+  --color-border-soft: #1c2740;
+  --color-surface: #141d33;
+  --color-surface-strong: #1a2440;
+  --color-surface-muted: #0d1526;
+
+  --ink: #f2f5fa;
+  --muted: #8894b3;
+  --line: #232f4d;
+  --soft: #141d33;
+
+  --panel-bg: #141d33;
+  --panel-border: 1px solid #232f4d;
+  --panel-shadow: none;
+}
