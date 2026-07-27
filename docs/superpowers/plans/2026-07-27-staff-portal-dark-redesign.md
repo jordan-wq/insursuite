@@ -329,9 +329,13 @@ Append:
   background: #0d1526;
   border-color: #2c3a5c;
 }
-.staff-shell .support-composer button {
+.staff-shell .support-composer button:not(:last-child) {
   color: #8894b3;
   background: #1a2440;
+}
+.staff-shell .support-composer button:last-child {
+  color: #fff;
+  background: #2563eb;
 }
 .staff-shell .new-conversation-panel { background: #0d1526; border-color: #232f4d; }
 .staff-shell .new-conversation-panel > input {
@@ -353,6 +357,8 @@ Append:
 .staff-shell .knowledge-list p { background: #141d33; }
 .staff-shell .empty-state strong { color: #f2f5fa; }
 ```
+
+Note: `.staff-shell .support-composer button` is split into `:not(:last-child)` / `:last-child` rather than one flat selector, because a flat selector ties in specificity with the pre-existing global rule `.support-composer button:last-child { background:#2868d8 }` (`app/globals.css:343`) and loses on source order, silently killing the send button's blue accent. The `:last-child` variant reuses the plan's own accent color (`#2563eb`, matching `.support-bubble.consultant` and `.stat-card-accent` elsewhere in this plan).
 
 - [ ] **Step 2: Build**
 
