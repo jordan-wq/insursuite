@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "../../lib/supabase/server";
+import { createAdminSupabase } from "../../lib/supabase/admin";
 import { hasSupabaseConfig } from "../../lib/supabase/config";
 
 function safeReturnTo(value: string | null) {
@@ -21,7 +22,17 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createServerSupabase();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const email = data.user?.email || data.session?.user.email;
+
+    if (!error && email) {
+      const admin = createAdminSupabase();
+      const { data: invite } = await admin.from("staff_invites").select("id").eq("status", "pending").eq("email", email.toLowerCase()).maybeSingle();
+      if (invite && data.user) {
+        await admin.from("agent_roles").insert({ user_id: data.user.id });
+        await admin.from("staff_invites").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("id", invite.id);
+      }
+    }
   }
 
   return NextResponse.redirect(new URL(returnTo, request.url));
