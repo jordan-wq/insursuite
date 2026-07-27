@@ -869,9 +869,6 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   color: #86efac;
   background: #12291c;
 }
-.staff-shell .intake-safety { color: #86efac; background: #12291c; }
-.staff-shell .intake-safety strong { color: #b7f5c8; }
-.staff-shell .intake-safety small { color: #7fae8f; }
 .staff-shell .onboarding-form-card {
   background: #141d33;
   border-color: #232f4d;
@@ -888,11 +885,6 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   border-color: #2c3a5c;
 }
 .staff-shell .intake-fields label > small { color: #8894b3; }
-.staff-shell .intake-checkbox { border-color: #2c3a5c; background: #0d1526; }
-.staff-shell .intake-checkbox span small { color: #8894b3; }
-.staff-shell .sensitive-data-note { color: #86efac; background: #12291c; border-color: #234533; }
-.staff-shell .sensitive-data-note strong { color: #b7f5c8; }
-.staff-shell .sensitive-data-note small { color: #7fae8f; }
 .staff-shell .onboarding-actions { border-top-color: #232f4d; }
 .staff-shell .step-label { color: #dbe6fb; background: #1a2b52; }
 
