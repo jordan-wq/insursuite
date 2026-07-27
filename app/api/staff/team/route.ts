@@ -8,11 +8,14 @@ export async function GET() {
 
   const admin = createAdminSupabase();
   const { data: roles } = await admin.from("agent_roles").select("userId:user_id, createdAt:created_at").order("created_at", { ascending: true });
-  if (!roles?.length) return Response.json({ staff: [] });
+  const { data: invites } = await admin.from("staff_invites").select("id, email, createdAt:created_at").eq("status", "pending").order("created_at", { ascending: true });
+  const pendingInvites = invites || [];
+
+  if (!roles?.length) return Response.json({ staff: [], pendingInvites });
 
   const { data: profiles } = await admin.from("client_profiles").select("userId:user_id, email").in("user_id", roles.map((r) => r.userId));
   const staff = roles.map((role) => ({ userId: role.userId, createdAt: role.createdAt, email: profiles?.find((p) => p.userId === role.userId)?.email || "(no profile)" }));
-  return Response.json({ staff });
+  return Response.json({ staff, pendingInvites });
 }
 
 export async function POST(request: Request) {
