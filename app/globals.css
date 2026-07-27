@@ -729,3 +729,25 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   --panel-border: 1px solid #232f4d;
   --panel-shadow: none;
 }
+
+.staff-shell .sidebar {
+  background: #0d1526;
+  border-right: 1px solid #1c2740;
+  box-shadow: none;
+}
+.staff-shell .brand strong { color: #f2f5fa; }
+.staff-shell .brand strong span { color: #5b8fef; }
+.staff-shell .brand small { color: #5b6c8c; }
+.staff-shell .staff-nav-group-label {
+  padding: 0 10px;
+  margin: 14px 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #465170;
+}
+.staff-shell .sidebar nav > .staff-nav-group-label:first-child { margin-top: 0; }
+.staff-shell .sidebar nav a { color: #8894b3; }
+.staff-shell .sidebar nav a:hover { background: rgba(255,255,255,.05); transform: none; }
+.staff-shell .sidebar nav a.active { background: #1a2b52; color: #f2f5fa; box-shadow: none; }
