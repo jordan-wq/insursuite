@@ -5,6 +5,7 @@ One row per in-flight task. Any session must check this before starting new work
 | Topic slug | Worktree / branch | Phase | Started | Notes |
 |---|---|---|---|---|
 | staff-invite | `main` (not started) | designed | 2026-07-25 | Spec approved (`specs/2026-07-25-staff-invite-design.md`), no plan yet. Next unstarted work per CLAUDE.md. |
-| client-onboarding-underwriting | `.worktrees/client-onboarding-underwriting` / `feature/client-onboarding-underwriting` | executing | 2026-07-27 | Spec + 8-task plan reviewed 2026-07-26. Executing task-by-task. |
 
 Resolved: the previously-unclaimed uncommitted changes to `app/login/page.tsx`, `app/page.tsx`, `app/staff/(shell)/layout.tsx`, `app/staff/login/page.tsx`, `middleware.ts` were committed to `main` as `c23ca7e` ("Fix staff login: move isAgent check out of Edge middleware into shell layout") — that was the admin-login fix from earlier this session, unrelated to admin-console-shell.
+
+Resolved: `client-onboarding-underwriting` (8-task plan) merged to `main` at `66e56fe` on 2026-07-27 — all tasks implemented and reviewed via subagent-driven-development, worktree/branch removed.
