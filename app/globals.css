@@ -810,9 +810,13 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
   background: #0d1526;
   border-color: #2c3a5c;
 }
-.staff-shell .support-composer button {
+.staff-shell .support-composer button:not(:last-child) {
   color: #8894b3;
   background: #1a2440;
+}
+.staff-shell .support-composer button:last-child {
+  color: #fff;
+  background: #2563eb;
 }
 .staff-shell .new-conversation-panel { background: #0d1526; border-color: #232f4d; }
 .staff-shell .new-conversation-panel > input {
