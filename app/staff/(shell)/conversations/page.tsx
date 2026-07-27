@@ -40,7 +40,7 @@ function ConversationsView() {
   };
   useEffect(() => {
     load();
-    fetch("/api/staff/team", { cache: "no-store" }).then((r) => r.json()).then((d) => setStaff(d.staff || []));
+    fetch("/api/staff/team", { cache: "no-store" }).then((r) => r.ok ? r.json() : { staff: [] }).then((d) => setStaff(d.staff || []));
   }, []);
 
   // openRequestId changes after this effect's single run (user opens a thread later), so the
