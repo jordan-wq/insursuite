@@ -761,3 +761,28 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
 .staff-shell .eyebrow-row svg { color: #8894b3; }
 .staff-shell .stat-value { color: #f2f5fa; }
 .staff-shell .stat-card::before { content: none; }
+
+.staff-shell .secondary-button {
+  border-color: #2c3a5c;
+  color: #d3dced;
+  background: #171f38;
+}
+.staff-shell .modal-form label,
+.staff-shell .knowledge-form label {
+  color: #d3dced;
+}
+.staff-shell .modal-form input,
+.staff-shell .modal-form select,
+.staff-shell .modal-form textarea,
+.staff-shell .knowledge-form input,
+.staff-shell .knowledge-form textarea,
+.staff-shell .agent-queue select {
+  color: #f2f5fa;
+  background: #0d1526;
+  border-color: #2c3a5c;
+}
+.staff-shell .modal-form .form-notice {
+  color: #86efac;
+  background: rgba(24, 130, 79, .18);
+}
+.staff-shell .form-error { color: #f87171 !important; }
