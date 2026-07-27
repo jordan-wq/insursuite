@@ -41,6 +41,7 @@ export default function ManageStaffPage() {
   };
 
   const cancelInvite = async (id: string) => {
+    if (!window.confirm("Cancel this pending invite?")) return;
     await fetch(`/api/staff/invites/${id}`, { method: "DELETE" });
     load();
   };
