@@ -25,13 +25,26 @@ export async function POST(request: Request) {
 
   const admin = createAdminSupabase();
   const { data: profile } = await admin.from("client_profiles").select("userId:user_id").eq("email", email).maybeSingle();
-  if (!profile) return Response.json({ error: "No account found for that email — they need to sign up first" }, { status: 404 });
 
-  const { error } = await admin.from("agent_roles").insert({ user_id: profile.userId });
-  if (error) {
-    if (error.code === "23505") return Response.json({ error: "That person already has staff access" }, { status: 409 });
-    return Response.json({ error: "Unable to grant access" }, { status: 500 });
+  if (profile) {
+    const { error } = await admin.from("agent_roles").insert({ user_id: profile.userId });
+    if (error) {
+      if (error.code === "23505") return Response.json({ error: "That person already has staff access" }, { status: 409 });
+      return Response.json({ error: "Unable to grant access" }, { status: 500 });
+    }
+    return Response.json({ ok: true }, { status: 201 });
   }
 
-  return Response.json({ ok: true }, { status: 201 });
+  const origin = new URL(request.url).origin;
+  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin}/auth/callback?return_to=/staff`,
+  });
+  if (inviteError) {
+    return Response.json({ error: "An invite may already be pending for this email in Supabase — check the Supabase dashboard" }, { status: 500 });
+  }
+
+  const { error: insertError } = await admin.from("staff_invites").insert({ email, invited_by: user.id });
+  if (insertError) return Response.json({ error: "Invite sent but could not be recorded — check the Supabase dashboard" }, { status: 500 });
+
+  return Response.json({ invited: true }, { status: 201 });
 }
