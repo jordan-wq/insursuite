@@ -19,6 +19,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const returnTo = safeReturnTo(url.searchParams.get("return_to"));
+  const flow = url.searchParams.get("flow");
 
   if (code) {
     const supabase = await createServerSupabase();
@@ -44,6 +45,17 @@ export async function GET(request: Request) {
         }
       }
     }
+  }
+
+  // Invite and password-reset links authenticate the user but never give them
+  // a password to sign back in with later -- route them through a page that
+  // sets one before landing wherever they were headed. Ordinary signup
+  // confirmation already has a password from signup, so it skips this. Route
+  // there even when the exchange failed (stale/already-used code, the most
+  // common real-world failure) so the page's "this link has expired" message
+  // is actually reachable, instead of silently bouncing to a contextless login.
+  if (flow === "invite" || flow === "reset") {
+    return NextResponse.redirect(new URL(`/auth/set-password?return_to=${encodeURIComponent(returnTo)}`, request.url));
   }
 
   return NextResponse.redirect(new URL(returnTo, request.url));

@@ -89,7 +89,7 @@ function LoginForm() {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         {
-          redirectTo: `${window.location.origin}/auth/callback?return_to=${encodeURIComponent(returnTo)}`,
+          redirectTo: `${window.location.origin}/auth/callback?return_to=${encodeURIComponent(returnTo)}&flow=reset`,
         },
       );
       if (resetError) throw resetError;

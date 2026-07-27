@@ -24,7 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const origin = new URL(request.url).origin;
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origin}/auth/callback?return_to=/`,
+    redirectTo: `${origin}/auth/callback?return_to=/&flow=invite`,
   });
   if (inviteError || !invited?.user) return Response.json({ error: inviteError?.message || "Could not send invite" }, { status: 500 });
 
