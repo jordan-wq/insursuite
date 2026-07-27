@@ -10,8 +10,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
   const { id } = await context.params;
   const admin = createAdminSupabase();
-  const { data: owned } = await admin.from("service_requests").select("id").eq("id", id).eq("assigned_to", user.id).maybeSingle();
-  if (!owned) return Response.json({ error: "Request not found in your assigned queue" }, { status: 404 });
+  const { data: owned } = await admin.from("service_requests").select("id").eq("id", id).maybeSingle();
+  if (!owned) return Response.json({ error: "Request not found" }, { status: 404 });
 
   const { data: messages } = await admin.from("service_request_messages").select(MESSAGE_SELECT).eq("service_request_id", id).order("created_at", { ascending: true });
   return Response.json({ messages: messages || [] });
@@ -27,8 +27,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!message) return Response.json({ error: "Message is required" }, { status: 400 });
 
   const admin = createAdminSupabase();
-  const { data: owned } = await admin.from("service_requests").select("id, userId:user_id").eq("id", id).eq("assigned_to", user.id).maybeSingle();
-  if (!owned) return Response.json({ error: "Request not found in your assigned queue" }, { status: 404 });
+  const { data: owned } = await admin.from("service_requests").select("id, userId:user_id").eq("id", id).maybeSingle();
+  if (!owned) return Response.json({ error: "Request not found" }, { status: 404 });
 
   const { data: saved, error } = await admin
     .from("service_request_messages")

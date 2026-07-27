@@ -4,19 +4,12 @@ import { isAgent } from "../../../service-routing";
 
 const POLICY_SELECT = "id, policyNumber:policy_number, policyType:policy_type, carrier, packetStatus:packet_status";
 
-async function isAssignedToAgent(clientId: string, agentId: string) {
-  const admin = createAdminSupabase();
-  const { data } = await admin.from("service_requests").select("id").eq("user_id", clientId).eq("assigned_to", agentId).limit(1).maybeSingle();
-  return Boolean(data);
-}
-
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user || !(await isAgent(user.id))) return Response.json({ error: "Agent access required" }, { status: 403 });
 
   const clientId = new URL(request.url).searchParams.get("clientId");
   if (!clientId) return Response.json({ error: "clientId is required" }, { status: 400 });
-  if (!(await isAssignedToAgent(clientId, user.id))) return Response.json({ error: "Client not found in your assigned queue" }, { status: 404 });
 
   const admin = createAdminSupabase();
   const { data: policies } = await admin.from("user_policies").select(POLICY_SELECT).eq("user_id", clientId);
@@ -33,10 +26,6 @@ export async function PATCH(request: Request) {
   }
 
   const admin = createAdminSupabase();
-  const { data: existing } = await admin.from("user_policies").select("userId:user_id").eq("id", body.id).maybeSingle();
-  if (!existing || !(await isAssignedToAgent(existing.userId, user.id))) {
-    return Response.json({ error: "Policy not found in your assigned queue" }, { status: 404 });
-  }
 
   const { data: policy, error } = await admin
     .from("user_policies")
