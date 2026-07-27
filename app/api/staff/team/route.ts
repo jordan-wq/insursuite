@@ -39,14 +39,14 @@ export async function POST(request: Request) {
   }
 
   const origin = new URL(request.url).origin;
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${origin}/auth/callback?return_to=/staff`,
   });
-  if (inviteError) {
+  if (inviteError || !invited?.user) {
     return Response.json({ error: "An invite may already be pending for this email in Supabase — check the Supabase dashboard" }, { status: 500 });
   }
 
-  const { error: insertError } = await admin.from("staff_invites").insert({ email, invited_by: user.id });
+  const { error: insertError } = await admin.from("staff_invites").insert({ email, invited_by: user.id, invited_user_id: invited.user.id });
   if (insertError) return Response.json({ error: "Invite sent but could not be recorded — check the Supabase dashboard" }, { status: 500 });
 
   return Response.json({ invited: true }, { status: 201 });
