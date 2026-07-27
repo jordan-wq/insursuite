@@ -23,12 +23,19 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createServerSupabase();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    const email = data.user?.email || data.session?.user.email;
 
-    if (!error && email) {
+    // Deliberate exception to "admin client only after an explicit isAgent()
+    // check" (see AGENTS.md) -- the whole point of this path is granting
+    // access to someone who isn't an agent yet, so an isAgent() gate would be
+    // circular. Safety instead comes from requiring a genuine, just-completed
+    // code exchange AND an exact match on the specific auth user id that
+    // inviteUserByEmail created for this invite (not just a matching email --
+    // other flows, e.g. client-onboarding invites or ordinary signup, also
+    // land on this same callback route and must never match here).
+    if (!error && data.user) {
       const admin = createAdminSupabase();
-      const { data: invite } = await admin.from("staff_invites").select("id").eq("status", "pending").eq("email", email.toLowerCase()).maybeSingle();
-      if (invite && data.user) {
+      const { data: invite } = await admin.from("staff_invites").select("id").eq("status", "pending").eq("invited_user_id", data.user.id).maybeSingle();
+      if (invite) {
         const { error: roleError } = await admin.from("agent_roles").insert({ user_id: data.user.id });
         if (roleError && roleError.code !== "23505") {
           console.error("Failed to grant agent_roles on invite acceptance", { inviteId: invite.id, error: roleError.message });
