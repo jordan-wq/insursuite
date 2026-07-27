@@ -9,14 +9,16 @@ export default async function StaffShellLayout({ children }: { children: React.R
   if (!user || !(await isAgent(user.id))) redirect("/?notice=staff_access_denied");
 
   return (
-    <div className="app-shell">
+    <div className="app-shell staff-shell">
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark"><ShieldCheck size={25} /></div><div><strong>Insur<span>Suite</span></strong><small>Admin Console</small></div></div>
         <nav aria-label="Staff navigation">
+          <div className="staff-nav-group-label">Workspace</div>
           <Link href="/staff"><LayoutDashboard size={20} /><span>Overview</span></Link>
           <Link href="/staff/conversations"><MessagesSquare size={20} /><span>Conversations</span></Link>
           <Link href="/staff/clients"><Users size={20} /><span>Clients</span></Link>
           <Link href="/staff/onboarding"><UserPlus size={20} /><span>Onboarding</span></Link>
+          <div className="staff-nav-group-label">System</div>
           <Link href="/staff/knowledge"><BookOpen size={20} /><span>Knowledge</span></Link>
           <Link href="/staff/team"><UserCog size={20} /><span>Manage Staff</span></Link>
         </nav>
