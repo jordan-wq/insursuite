@@ -6,6 +6,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const POLICY_SELECT = "id, policyNumber:policy_number, policyType:policy_type, carrier, packetStatus:packet_status";
 const REQUEST_SELECT = "id, requestType:request_type, details, status, assignedTo:assigned_to, source, priority, createdAt:created_at, updatedAt:updated_at";
 const DOCUMENT_SELECT = "id, fileName:file_name, contentType:content_type, fileSize:file_size, processingStatus:processing_status, createdAt:created_at";
+const UNDERWRITING_SELECT = "underwriting, createdAt:created_at";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -22,11 +23,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     .maybeSingle();
   if (!profile) return Response.json({ error: "Client not found" }, { status: 404 });
 
-  const [{ data: policies }, { data: requests }, { data: documents }] = await Promise.all([
+  const [{ data: policies }, { data: requests }, { data: documents }, { data: underwriting }] = await Promise.all([
     admin.from("user_policies").select(POLICY_SELECT).eq("user_id", id),
     admin.from("service_requests").select(REQUEST_SELECT).eq("user_id", id).order("created_at", { ascending: false }),
     admin.from("documents").select(DOCUMENT_SELECT).eq("user_id", id).order("created_at", { ascending: false }),
+    admin.from("underwriting_records").select(UNDERWRITING_SELECT).eq("user_id", id).eq("status", "completed").maybeSingle(),
   ]);
 
-  return Response.json({ profile, policies: policies || [], requests: requests || [], documents: documents || [] });
+  return Response.json({ profile, policies: policies || [], requests: requests || [], documents: documents || [], underwriting: underwriting || null });
 }
