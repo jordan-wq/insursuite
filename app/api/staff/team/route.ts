@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     redirectTo: `${origin}/auth/callback?return_to=/staff`,
   });
   if (inviteError || !invited?.user) {
-    return Response.json({ error: "An invite may already be pending for this email in Supabase — check the Supabase dashboard" }, { status: 500 });
+    return Response.json({ error: inviteError?.message || "Could not send invite" }, { status: 500 });
   }
 
   const { error: insertError } = await admin.from("staff_invites").insert({ email, invited_by: user.id, invited_user_id: invited.user.id });
