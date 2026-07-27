@@ -4,8 +4,8 @@ export function ticketCode(id: string | undefined | null): string {
   return String(id || "").replace(/-/g, "").slice(0, 6).toUpperCase() || "PENDING";
 }
 
-export function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`panel ${className}`}>{children}</section>;
+export function Panel({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return <section className={`panel ${className}`} style={style}>{children}</section>;
 }
 
 export function PanelHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
