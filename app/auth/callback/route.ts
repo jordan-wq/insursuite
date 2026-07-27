@@ -29,8 +29,12 @@ export async function GET(request: Request) {
       const admin = createAdminSupabase();
       const { data: invite } = await admin.from("staff_invites").select("id").eq("status", "pending").eq("email", email.toLowerCase()).maybeSingle();
       if (invite && data.user) {
-        await admin.from("agent_roles").insert({ user_id: data.user.id });
-        await admin.from("staff_invites").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("id", invite.id);
+        const { error: roleError } = await admin.from("agent_roles").insert({ user_id: data.user.id });
+        if (roleError && roleError.code !== "23505") {
+          console.error("Failed to grant agent_roles on invite acceptance", { inviteId: invite.id, error: roleError.message });
+        } else {
+          await admin.from("staff_invites").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("id", invite.id);
+        }
       }
     }
   }
