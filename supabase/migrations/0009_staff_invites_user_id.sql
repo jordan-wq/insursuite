@@ -7,4 +7,4 @@
 -- invited auth user id closes that gap.
 
 alter table public.staff_invites
-  add column invited_user_id uuid references auth.users(id) on delete cascade;
+  add column invited_user_id uuid references auth.users(id) on delete set null;
