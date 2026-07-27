@@ -40,13 +40,16 @@ export default function StaffLoginPage() {
         </div>
         <div className="auth-panel-wrap">
           <form className="auth-card" onSubmit={submit}>
+            <div className="auth-tabs portal-tabs" role="tablist" aria-label="Portal type">
+              <Link href="/login">Client</Link>
+              <Link href="/staff/login" className="active">Agent</Link>
+            </div>
             <span className="form-icon"><ShieldCheck size={23} /></span>
             <h2>Admin sign in</h2>
             <label>Email address<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" required /></label>
             <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" required /></label>
             {error && <p className="form-error">{error}</p>}
             <button className="primary-button full" disabled={loading}>{loading ? "Signing in..." : "Sign in as admin"}</button>
-            <small className="privacy-line">Not an admin? <Link href="/login">Sign in as client</Link></small>
           </form>
         </div>
       </section>

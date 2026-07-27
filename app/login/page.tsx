@@ -103,6 +103,10 @@ function LoginForm() {
 
   return (
     <form className="auth-card" onSubmit={submit}>
+      <div className="auth-tabs portal-tabs" role="tablist" aria-label="Portal type">
+        <Link href="/login" className="active">Client</Link>
+        <Link href="/staff/login">Agent</Link>
+      </div>
       <span className="form-icon">
         <LockKeyhole size={23} />
       </span>
@@ -159,7 +163,6 @@ function LoginForm() {
         <LockKeyhole size={13} />
         Protected by Supabase Auth. Do not enter SSNs, bank credentials, or carrier passwords.
       </small>
-      <small className="privacy-line">Admin? <Link href="/staff/login">Sign in as admin</Link></small>
     </form>
   );
 }

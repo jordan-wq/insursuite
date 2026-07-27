@@ -455,8 +455,9 @@ body { color:var(--color-text); background:var(--color-page); font-size:var(--te
 .auth-card h2 { margin:14px 0 7px; color:#102039; font-size:25px; letter-spacing:0; }
 .auth-card > p { margin:0 0 18px; color:#536277; font-size:14px; line-height:1.55; }
 .auth-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:17px; padding:5px; border:1px solid #dbe5ee; border-radius:14px; background:#f5f8fb; }
-.auth-tabs button { min-height:40px; border:0; border-radius:10px; background:transparent; color:#52647c; cursor:pointer; font-size:13px; font-weight:750; }
-.auth-tabs button.active { color:#102a4c; background:#fff; box-shadow:0 8px 18px rgba(22,52,87,.08); }
+.auth-tabs button,.auth-tabs a { min-height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:10px; background:transparent; color:#52647c; text-decoration:none; cursor:pointer; font-size:13px; font-weight:750; transition:background .2s cubic-bezier(.4,0,.2,1),color .2s cubic-bezier(.4,0,.2,1); }
+.auth-tabs button.active,.auth-tabs a.active { color:#102a4c; background:#fff; box-shadow:0 8px 18px rgba(22,52,87,.08); }
+.portal-tabs { margin-bottom:14px; }
 .auth-card label { display:block; margin-bottom:13px; color:#22334e; font-size:12px; font-weight:750; }
 .auth-card input { width:100%; min-height:46px; margin-top:6px; padding:0 12px; border:1px solid #cdd9e6; border-radius:12px; background:#fff; color:#13233d; font-size:14px; }
 .password-field { display:grid; grid-template-columns:1fr 44px; align-items:center; margin-top:6px; border:1px solid #cdd9e6; border-radius:12px; background:#fff; overflow:hidden; }
