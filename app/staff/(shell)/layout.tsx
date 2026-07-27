@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, MessagesSquare, Users, BookOpen, UserCog, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, Users, BookOpen, UserCog, ShieldCheck, UserPlus } from "lucide-react";
 import { getCurrentUser } from "../../auth";
 import { isAgent } from "../../service-routing";
 
@@ -16,6 +16,7 @@ export default async function StaffShellLayout({ children }: { children: React.R
           <Link href="/staff"><LayoutDashboard size={20} /><span>Overview</span></Link>
           <Link href="/staff/conversations"><MessagesSquare size={20} /><span>Conversations</span></Link>
           <Link href="/staff/clients"><Users size={20} /><span>Clients</span></Link>
+          <Link href="/staff/onboarding"><UserPlus size={20} /><span>Onboarding</span></Link>
           <Link href="/staff/knowledge"><BookOpen size={20} /><span>Knowledge</span></Link>
           <Link href="/staff/team"><UserCog size={20} /><span>Manage Staff</span></Link>
         </nav>
