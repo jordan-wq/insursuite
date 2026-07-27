@@ -50,6 +50,9 @@ export async function PATCH(request: Request) {
     update.status = body.status;
   }
   if (body.assignedTo !== undefined) {
+    if (body.assignedTo !== null && !(await isAgent(body.assignedTo))) {
+      return Response.json({ error: "assignedTo must be null or an existing staff member" }, { status: 400 });
+    }
     update.assigned_to = body.assignedTo;
   }
   if (body.status === undefined && body.assignedTo === undefined) return Response.json({ error: "status or assignedTo required" }, { status: 400 });

@@ -38,7 +38,11 @@ function ConversationsView() {
     const response = await fetch("/api/agent/conversations", { cache: "no-store" });
     if (response.ok) setQueue((await response.json()).requests || []);
   };
+  // Fetch-on-mount, called from both this effect and the Realtime effect below (a live update
+  // re-triggers the same reload) — that's the intended "keep list current" behavior, not a
+  // cascading-render bug, so the linter's set-state-in-effect warning is a false positive here.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     fetch("/api/staff/team", { cache: "no-store" }).then((r) => r.ok ? r.json() : { staff: [] }).then((d) => setStaff(d.staff || []));
   }, []);
@@ -48,6 +52,12 @@ function ConversationsView() {
   // otherwise it would always see the initial `null` and never refresh an open thread.
   const openRequestIdRef = useRef<string | null>(null);
   useEffect(() => { openRequestIdRef.current = openRequestId; }, [openRequestId]);
+
+  const openThread = async (requestId: string) => {
+    setOpenRequestId(requestId);
+    const response = await fetch(`/api/agent/requests/${requestId}/messages`, { cache: "no-store" });
+    if (response.ok) setThreadMessages((await response.json()).messages || []);
+  };
 
   useEffect(() => {
     const supabase = createClientSupabase();
@@ -60,7 +70,6 @@ function ConversationsView() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const update = async (id: string, status: string) => { await fetch("/api/agent/conversations", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, status }) }); load(); };
@@ -83,11 +92,6 @@ function ConversationsView() {
     } else {
       setPolicyError("Could not update packet status — please try again.");
     }
-  };
-  const openThread = async (requestId: string) => {
-    setOpenRequestId(requestId);
-    const response = await fetch(`/api/agent/requests/${requestId}/messages`, { cache: "no-store" });
-    if (response.ok) setThreadMessages((await response.json()).messages || []);
   };
   const sendThreadMessage = async () => {
     const text = threadDraft.trim();
