@@ -895,3 +895,19 @@ button:active, .primary-button:active, .secondary-button:active, .policy-row:act
 .staff-shell .sensitive-data-note small { color: #7fae8f; }
 .staff-shell .onboarding-actions { border-top-color: #232f4d; }
 .staff-shell .step-label { color: #dbe6fb; background: #1a2b52; }
+
+.staff-shell .stat-card-accent {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: transparent;
+}
+.staff-shell .stat-card-accent .eyebrow-row,
+.staff-shell .stat-card-accent .eyebrow-row svg,
+.staff-shell .stat-card-accent .stat-value {
+  color: #fff;
+}
+.staff-shell .stat-card-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,.75);
+}
